@@ -9,13 +9,17 @@ const rl = createInterface({
 // initial promprt
 rl.prompt();
 
-rl.on('line', (command) => {
+rl.on('line', (stdin) => {
+  const [command, ...props] = stdin.split(' ');
   switch (command) {
     case 'exit':
       rl.close();
       break;
+    case 'echo':
+      console.log(props.join(' '));
+      break;
     default:
-      console.log(`${command}: command not found`);
+      console.log(`${stdin}: command not found`);
       rl.prompt();
       break;
   }
