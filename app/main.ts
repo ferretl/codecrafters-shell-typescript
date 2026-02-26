@@ -17,6 +17,7 @@ rl.on('line', (stdin) => {
       break;
     case 'echo':
       console.log(props.join(' '));
+      rl.prompt();
       break;
     default:
       console.log(`${stdin}: command not found`);
