@@ -1,4 +1,12 @@
+import { arch } from 'os';
 import { createInterface } from 'readline';
+
+const KNOWN_COMMANDS = new Set(['echo', 'exit', 'type']);
+
+const getType = (command: string) =>
+  KNOWN_COMMANDS.has(command)
+    ? console.log(`${command} is a shell builtin`)
+    : console.log(`${command}: not found`);
 
 const rl = createInterface({
   input: process.stdin,
@@ -17,6 +25,10 @@ rl.on('line', (stdin) => {
       break;
     case 'echo':
       console.log(args.join(' '));
+      rl.prompt();
+      break;
+    case 'type':
+      getType(args[0]);
       rl.prompt();
       break;
     default:
