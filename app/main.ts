@@ -1,4 +1,3 @@
-import { arch } from 'os';
 import { createInterface } from 'readline';
 
 const KNOWN_COMMANDS = new Set(['echo', 'exit', 'type']);
@@ -22,18 +21,17 @@ rl.on('line', (stdin) => {
   switch (command) {
     case 'exit':
       rl.close();
+      process.exit(0);
       break;
     case 'echo':
       console.log(args.join(' '));
-      rl.prompt();
       break;
     case 'type':
       getType(args[0]);
-      rl.prompt();
       break;
     default:
       console.log(`${stdin}: command not found`);
-      rl.prompt();
       break;
   }
+  rl.prompt();
 });
