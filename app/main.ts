@@ -6,17 +6,17 @@ const rl = createInterface({
   prompt: '$ '
 });
 
-// initial promprt
+// initial prompt
 rl.prompt();
 
 rl.on('line', (stdin) => {
-  const [command, ...props] = stdin.split(' ');
+  const [command, ...args] = stdin.split(' ');
   switch (command) {
     case 'exit':
       rl.close();
       break;
     case 'echo':
-      console.log(props.join(' '));
+      console.log(args.join(' '));
       rl.prompt();
       break;
     default:
