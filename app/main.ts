@@ -12,6 +12,7 @@ rl.prompt();
 rl.on('line', (command) => {
   switch (command) {
     case 'exit':
+      rl.close();
       break;
     default:
       console.log(`${command}: command not found`);
