@@ -6,10 +6,10 @@ const rl = createInterface({
   prompt: '$ '
 });
 
-while (true) {
-  // TODO: Uncomment the code below to pass the first stage
+  // initial promprt
   rl.prompt();
+
   rl.on('line', (command) => {
     console.log(`${command}: command not found`);
-  });
+    rl.prompt();
 }
