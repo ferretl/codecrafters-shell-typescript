@@ -5,13 +5,15 @@ import * as O from 'fp-ts/Option';
 import * as IOE from 'fp-ts/IOEither';
 import * as E from 'fp-ts/Either';
 import type { CommandResult } from './types/Result';
-import type { CommandArgs } from './types/Command';
+import type { CommandArgs, EvalResult } from './types/Command';
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: '$ '
 });
+
+rl.prompt();
 
 const parseLine = (line: string): { name: string; args: CommandArgs } => {
   const parts = line.trim().split(/\s+/).filter(Boolean);
@@ -40,8 +42,6 @@ export const runBuiltin =
         (command) => command.eval(args)
       )
     );
-
-rl.prompt(); // inital prompt
 
 rl.on('line', (line) => {
   const { name, args } = parseLine(line);
