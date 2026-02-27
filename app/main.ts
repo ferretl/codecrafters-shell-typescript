@@ -5,6 +5,7 @@ import * as O from 'fp-ts/Option';
 import * as IOE from 'fp-ts/IOEither';
 import * as E from 'fp-ts/Either';
 import type { CommandResult } from './types/Result';
+import type { CommandArgs } from './types/Command';
 
 const rl = createInterface({
   input: process.stdin,
@@ -12,9 +13,7 @@ const rl = createInterface({
   prompt: '$ '
 });
 
-const parseLine = (
-  line: string
-): { name: string; args: ReadonlyArray<string> } => {
+const parseLine = (line: string): { name: string; args: CommandArgs } => {
   const parts = line.trim().split(/\s+/).filter(Boolean);
   const [name = '', ...args] = parts;
   return { name, args };
@@ -33,12 +32,12 @@ const handleResult = (result: CommandResult) => {
 };
 
 export const runBuiltin =
-  (registry: CommandRegistry) => (name: string, args: ReadonlyArray<string>) =>
+  (registry: CommandRegistry) => (name: string, args: CommandArgs) =>
     pipe(
       O.fromNullable(registry[name]),
       O.match(
         () => IOE.left({ message: `command not found: ${name}` }),
-        (cmd) => cmd.eval(args)
+        (command) => command.eval(args)
       )
     );
 
@@ -48,12 +47,11 @@ rl.on('line', (line) => {
   const { name, args } = parseLine(line);
   if (name === '') return rl.prompt();
 
-  const program = runBuiltin(builtins)(name, args);
-  const either = program();
+  const evalResult = runBuiltin(builtins)(name, args)();
 
-  E.isLeft(either)
-    ? console.error(either.left.message)
-    : handleResult(either.right);
+  E.isLeft(evalResult)
+    ? console.error(evalResult.left.message)
+    : handleResult(evalResult.right);
 
   rl.prompt();
 });
