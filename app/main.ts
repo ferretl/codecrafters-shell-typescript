@@ -6,7 +6,7 @@ import * as IOE from 'fp-ts/IOEither';
 import * as E from 'fp-ts/Either';
 import type { CommandResult } from './types/Result';
 import type { CommandArgs, IOEvalResult } from './types/Command';
-import { execFileSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
 const rl = createInterface({
   input: process.stdin,
@@ -51,10 +51,11 @@ export const runExecutable = (
   pipe(
     IOE.tryCatch(
       () =>
-        execFileSync(`${dir}/${name}`, [...args], {
+        spawnSync(`${dir}/${name}`, [...args], {
+          argv0: name,
           encoding: 'utf-8',
-          stdio: ['pipe', 'pipe', 'inherit']
-        }),
+          stdio: ['pipe', 'inherit']
+        }).stdout,
       (): { message: string } => ({ message: `${name}: command failed` })
     ),
     IOE.map(
