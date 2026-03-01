@@ -1,5 +1,5 @@
 import { createInterface } from 'readline';
-import { builtins, type CommandRegistry } from './builtins';
+import { builtins, findBuiltin, type CommandRegistry } from './builtins';
 import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/Option';
 import * as IOE from 'fp-ts/IOEither';
@@ -33,21 +33,20 @@ const handleResult = (result: CommandResult) => {
   }
 };
 
-export const runBuiltin =
-  (registry: CommandRegistry) => (name: string, args: CommandArgs) =>
-    pipe(
-      O.fromNullable(registry[name]),
-      O.match(
-        () => IOE.left({ message: `${name}: command not found` }),
-        (command) => command.eval(args)
-      )
-    );
+export const runBuiltin = (name: string, args: CommandArgs) =>
+  pipe(
+    findBuiltin(name),
+    O.match(
+      () => IOE.left({ message: `${name}: command not found` }),
+      (command) => command.eval(args)
+    )
+  );
 
 rl.on('line', (line) => {
   const { name, args } = parseLine(line);
   if (name === '') return rl.prompt();
 
-  const evalResult = runBuiltin(builtins)(name, args)();
+  const evalResult = runBuiltin(name, args)();
 
   E.isLeft(evalResult)
     ? console.error(evalResult.left.message)
