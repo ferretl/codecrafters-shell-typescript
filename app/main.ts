@@ -38,7 +38,7 @@ export const runBuiltin =
     pipe(
       O.fromNullable(registry[name]),
       O.match(
-        () => IOE.left({ message: `command not found: ${name}` }),
+        () => IOE.left({ message: `${name}: command not found` }),
         (command) => command.eval(args)
       )
     );
