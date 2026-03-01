@@ -12,16 +12,19 @@ export type CommandName = string;
 
 export type CommandRegistry = Record<CommandName, Command<CommandArgs>>;
 
+export type FilePath = string;
+
 export const builtins: CommandRegistry = {
   echo,
   exit,
   type
 };
 
-export const findBuiltin = (input: string): O.Option<Command<CommandArgs>> =>
-  O.fromNullable(builtins[input]);
+export const findBuiltin = (
+  builtinName: string
+): O.Option<Command<CommandArgs>> => O.fromNullable(builtins[builtinName]);
 
-export const findExecutable = (input: string): O.Option<string> =>
+export const findExecutable = (fileName: string): O.Option<FilePath> =>
   pipe(
     O.fromNullable(process.env.PATH),
     O.map((pathContents) => pathContents.split(path.delimiter)),
@@ -29,7 +32,7 @@ export const findExecutable = (input: string): O.Option<string> =>
       A.findFirst((filePath) =>
         O.isSome(
           O.tryCatch(() => {
-            fs.accessSync(`${filePath}/${input}`, fs.constants.X_OK);
+            fs.accessSync(`${filePath}/${fileName}`, fs.constants.X_OK);
           })
         )
       )
