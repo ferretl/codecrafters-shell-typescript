@@ -53,6 +53,7 @@ export const runExecutable = (
       () =>
         spawnSync(`${dir}/${name}`, [...args], {
           argv0: name,
+          encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'inherit']
         }).stdout,
       (): { message: string } => ({ message: `${name}: command failed` })
