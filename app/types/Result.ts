@@ -4,5 +4,5 @@ export const enum ResultTag {
 }
 
 export type CommandResult =
-  | { _tag: ResultTag.Output; text: string }
+  | { _tag: ResultTag.Output; text: string | null }
   | { _tag: ResultTag.Exit; code: number };

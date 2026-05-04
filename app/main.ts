@@ -29,7 +29,7 @@ const parseLine = (line: string): { name: string; args: CommandArgs } => {
 const handleResult = (result: CommandResult) => {
   switch (result._tag) {
     case ResultTag.Output:
-      console.log(result.text);
+      if (result.text !== null) console.log(result.text);
       return;
 
     case ResultTag.Exit:
@@ -75,10 +75,16 @@ rl.on('line', (line) => {
   if (name === '') return rl.prompt();
 
   const evalResult = pipe(
-    findExecutable(name),
+    findBuiltin(name),
     O.match(
-      () => runBuiltin(name, args),
-      (dir) => runExecutable(dir, name, args)
+      () => pipe(
+        findExecutable(name),
+        O.match(
+          () => IOE.left({ message: `${name}: command not found` }),
+          (dir) => runExecutable(dir, name, args)
+        )
+      ),
+      (command) => command.eval(args)
     )
   )();
 
