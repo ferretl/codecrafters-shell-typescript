@@ -5,6 +5,7 @@ import { type CommandArgs } from './types';
 
 type ParseState = {
   inSingleQuote: boolean;
+  inDoubleQuote: boolean;
   current: string;
   args: readonly string[];
 };
@@ -20,9 +21,15 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   if (state.inSingleQuote)
     return char === "'" ? { ...state, inSingleQuote: false } : append(char);
 
+  if (state.inDoubleQuote)
+    return char === '"' ? { ...state, inDoubleQuote: false } : append(char);
+
   switch (char) {
     case "'":
       return { ...state, inSingleQuote: true };
+
+    case '"':
+      return { ...state, inDoubleQuote: true };
 
     case ' ':
     case '\t':
@@ -40,7 +47,7 @@ const parseArgs = (input: string): CommandArgs => {
   const { current, args } = pipe(
     [...input],
     RA.reduce(
-      { inSingleQuote: false, current: '', args: [] as readonly string[] },
+      { inSingleQuote: false, inDoubleQuote: false, current: '', args: [] as readonly string[] },
       stepChar
     )
   );
