@@ -1,7 +1,12 @@
 import * as IOE from 'fp-ts/lib/IOEither';
-import type { Command, CommandArgs, IOEvalResult } from '../types/Command';
+import {
+  ResultTag,
+  type Command,
+  type CommandArgs,
+  type IOEvalResult
+} from '../types';
 
 export const echo: Command<CommandArgs> = {
   eval: (args: CommandArgs): IOEvalResult =>
-    IOE.right({ _tag: 'Output', text: args.join(' ') })
+    IOE.right({ _tag: ResultTag.Output, text: args.join(' ') })
 };

@@ -1,9 +1,10 @@
-import type {
-  Command,
-  CommandArgs,
-  EvalResult,
-  IOEvalResult
-} from '../types/Command';
+import {
+  ResultTag,
+  type Command,
+  type CommandArgs,
+  type EvalResult,
+  type IOEvalResult
+} from '../types';
 import * as IOE from 'fp-ts/IOEither';
 
 const parseExitCode = (errorCode: string | undefined): number => {
@@ -13,5 +14,5 @@ const parseExitCode = (errorCode: string | undefined): number => {
 
 export const exit: Command<CommandArgs> = {
   eval: (args): IOEvalResult =>
-    IOE.right({ _tag: 'Exit', code: parseExitCode(args[0]) })
+    IOE.right({ _tag: ResultTag.Exit, code: parseExitCode(args[0]) })
 };

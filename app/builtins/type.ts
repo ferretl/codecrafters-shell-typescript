@@ -1,7 +1,12 @@
 import * as IOE from 'fp-ts/lib/IOEither';
 import * as O from 'fp-ts/Option';
 import * as RA from 'fp-ts/ReadonlyArray';
-import type { Command, CommandArgs, IOEvalResult } from '../types/Command';
+import {
+  ResultTag,
+  type Command,
+  type CommandArgs,
+  type IOEvalResult
+} from '../types';
 import { findBuiltin, findExecutable } from '.';
 import { pipe } from 'fp-ts/lib/function';
 
@@ -25,7 +30,7 @@ export const type: Command<CommandArgs> = {
             ),
             O.getOrElse(() => `${name}: not found`)
           );
-          return IOE.right({ _tag: 'Output', text });
+          return IOE.right({ _tag: ResultTag.Output, text });
         }
       )
     )

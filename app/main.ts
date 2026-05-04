@@ -4,8 +4,12 @@ import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/Option';
 import * as IOE from 'fp-ts/IOEither';
 import * as E from 'fp-ts/Either';
-import type { CommandResult } from './types/Result';
-import type { CommandArgs, IOEvalResult } from './types/Command';
+import {
+  type CommandArgs,
+  type IOEvalResult,
+  type CommandResult,
+  ResultTag
+} from './types';
 import { spawnSync } from 'child_process';
 
 const rl = createInterface({
@@ -24,11 +28,11 @@ const parseLine = (line: string): { name: string; args: CommandArgs } => {
 
 const handleResult = (result: CommandResult) => {
   switch (result._tag) {
-    case 'Output':
+    case ResultTag.Output:
       console.log(result.text);
       return;
 
-    case 'Exit':
+    case ResultTag.Exit:
       rl.close();
       process.exit(isFinite(result.code) ? result.code : 0);
   }
@@ -59,7 +63,10 @@ export const runExecutable = (
       (): { message: string } => ({ message: `${name}: command failed` })
     ),
     IOE.map(
-      (output): CommandResult => ({ _tag: 'Output', text: output.trimEnd() })
+      (output): CommandResult => ({
+        _tag: ResultTag.Output,
+        text: output.trimEnd()
+      })
     )
   );
 
