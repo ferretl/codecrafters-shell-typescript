@@ -32,15 +32,11 @@ const stepChar = (state: ParseState, char: string): ParseState => {
     args: RA.append(state.current)(state.args)
   });
 
-  if (state.quoteMode === QuoteMode.Single)
-    return char === "'"
-      ? { ...state, quoteMode: QuoteMode.None }
-      : append(char);
+  const stepQuoted = (closeChar: string) =>
+    char === closeChar ? { ...state, quoteMode: QuoteMode.None } : append(char);
 
-  if (state.quoteMode === QuoteMode.Double)
-    return char === '"'
-      ? { ...state, quoteMode: QuoteMode.None }
-      : append(char);
+  if (state.quoteMode === QuoteMode.Single) return stepQuoted("'");
+  if (state.quoteMode === QuoteMode.Double) return stepQuoted('"');
 
   switch (char) {
     case "'":
