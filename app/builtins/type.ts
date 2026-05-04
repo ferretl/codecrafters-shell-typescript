@@ -11,7 +11,7 @@ import { findBuiltin, findExecutable } from '.';
 import { pipe } from 'fp-ts/lib/function';
 
 export const type: Command = {
-  eval: (args: CommandArgs): IOEvalResult =>
+  eval: (args): IOEvalResult =>
     pipe(
       RA.head(args),
       O.fold(
