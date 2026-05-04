@@ -14,7 +14,7 @@ const parseExitCode = (errorCode: string | undefined): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const exit: Command<CommandArgs> = {
+export const exit: Command = {
   eval: (args): IOEvalResult =>
     pipe(
       RA.head(args),

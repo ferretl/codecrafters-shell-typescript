@@ -7,12 +7,13 @@ import {
 } from '../types';
 import * as RA from 'fp-ts/ReadonlyArray';
 import * as S from 'fp-ts/string';
+import * as O from 'fp-ts/Option';
 import { pipe } from 'fp-ts/lib/function';
 
-export const echo: Command<CommandArgs> = {
+export const echo: Command = {
   eval: (args: CommandArgs): IOEvalResult =>
     IOE.right({
       _tag: ResultTag.Output,
-      text: RA.intercalate(S.Monoid)(' ')(args)
+      text: O.some(RA.intercalate(S.Monoid)(' ')(args))
     })
 };

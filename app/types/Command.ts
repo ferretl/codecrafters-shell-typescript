@@ -6,8 +6,7 @@ import type { Either } from 'fp-ts/lib/Either';
 export type CommandArgs = ReadonlyArray<string>;
 
 export type IOEvalResult = IOE.IOEither<CommandError, CommandResult>;
-export type EvalResult = Either<CommandError, CommandResult>;
 
-export type Command<CommandArgs> = {
+export type Command = {
   eval: (args: CommandArgs) => IOEvalResult;
 };

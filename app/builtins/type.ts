@@ -10,7 +10,7 @@ import {
 import { findBuiltin, findExecutable } from '.';
 import { pipe } from 'fp-ts/lib/function';
 
-export const type: Command<CommandArgs> = {
+export const type: Command = {
   eval: (args: CommandArgs): IOEvalResult =>
     pipe(
       RA.head(args),
@@ -28,7 +28,7 @@ export const type: Command<CommandArgs> = {
                 O.map((filePath) => `${name} is ${filePath}/${name}`)
               )
             ),
-            O.getOrElse(() => `${name}: not found`)
+            O.alt(() => O.some(`${name} not found`))
           );
           return IOE.right({ _tag: ResultTag.Output, text });
         }

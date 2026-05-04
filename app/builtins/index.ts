@@ -8,21 +8,23 @@ import fs from 'fs';
 
 export type CommandName = string;
 
-export type CommandRegistry = Record<CommandName, Command<CommandArgs>>;
+export type CommandRegistry = Record<CommandName, Command>;
 
 export type FilePath = string;
 
-export const builtins: CommandRegistry = {
-  echo: require('./echo').echo,
-  pwd: require('./pwd').pwd,
-  exit: require('./exit').exit,
-  type: require('./type').type,
-  cd: require('./cd').cd
-};
+// Dynamically import all built-in commands from the current directory
+export const builtins: CommandRegistry = pipe(
+  fs.readdirSync(__dirname),
+  A.filter((f) => f.endsWith('.ts') && f !== 'index.ts'),
+  A.map((f) => path.basename(f, '.ts')),
+  A.reduce({} as CommandRegistry, (acc, name) => ({
+    ...acc,
+    [name]: require(`./${name}`)[name]
+  }))
+);
 
-export const findBuiltin = (
-  builtinName: string
-): O.Option<Command<CommandArgs>> => O.fromNullable(builtins[builtinName]);
+export const findBuiltin = (builtinName: string): O.Option<Command> =>
+  O.fromNullable(builtins[builtinName]);
 
 export const findExecutable = (fileName: string): O.Option<FilePath> =>
   pipe(
