@@ -16,7 +16,8 @@ export const builtins: CommandRegistry = {
   echo: require('./echo').echo,
   pwd: require('./pwd').pwd,
   exit: require('./exit').exit,
-  type: require('./type').type
+  type: require('./type').type,
+  cd: require('./cd').cd
 };
 
 export const findBuiltin = (
