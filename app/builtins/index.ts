@@ -1,7 +1,5 @@
 import type { Command, CommandArgs } from '../types/Command';
-import { echo } from './echo';
-import { exit } from './exit';
-import { type } from './type';
+
 import * as O from 'fp-ts/Option';
 import * as A from 'fp-ts/Array';
 import { pipe } from 'fp-ts/lib/function';
@@ -15,9 +13,10 @@ export type CommandRegistry = Record<CommandName, Command<CommandArgs>>;
 export type FilePath = string;
 
 export const builtins: CommandRegistry = {
-  echo,
-  exit,
-  type
+  echo: require('./echo').echo,
+  pwd: require('./pwd').pwd,
+  exit: require('./exit').exit,
+  type: require('./type').type
 };
 
 export const findBuiltin = (
