@@ -2,7 +2,6 @@ import {
   ResultTag,
   type Command,
   type CommandArgs,
-  type EvalResult,
   type IOEvalResult
 } from '../types';
 import * as IOE from 'fp-ts/IOEither';
