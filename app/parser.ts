@@ -3,7 +3,11 @@ import * as O from 'fp-ts/Option';
 import * as RA from 'fp-ts/ReadonlyArray';
 import { type CommandArgs } from './types';
 
-type QuoteMode = 'none' | 'single' | 'double';
+const enum QuoteMode {
+  None = 'none',
+  Single = 'single',
+  Double = 'double'
+}
 
 type ParseState = {
   quoteMode: QuoteMode;
@@ -12,7 +16,7 @@ type ParseState = {
 };
 
 const initialState: ParseState = {
-  quoteMode: 'none',
+  quoteMode: QuoteMode.None,
   current: '',
   args: []
 };
@@ -29,16 +33,20 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   });
 
   if (state.quoteMode === 'single')
-    return char === "'" ? { ...state, quoteMode: 'none' } : append(char);
+    return char === "'"
+      ? { ...state, quoteMode: QuoteMode.None }
+      : append(char);
 
   if (state.quoteMode === 'double')
-    return char === '"' ? { ...state, quoteMode: 'none' } : append(char);
+    return char === '"'
+      ? { ...state, quoteMode: QuoteMode.None }
+      : append(char);
 
   switch (char) {
     case "'":
-      return { ...state, quoteMode: 'single' };
+      return { ...state, quoteMode: QuoteMode.Single };
     case '"':
-      return { ...state, quoteMode: 'double' };
+      return { ...state, quoteMode: QuoteMode.Double };
     case ' ':
     case '\t':
       return state.current ? flush() : state;
