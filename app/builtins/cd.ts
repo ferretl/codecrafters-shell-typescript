@@ -16,7 +16,7 @@ export const cd: Command = {
       (targetDir) =>
         IOE.tryCatch(
           () => {
-            process.chdir(targetDir.replaceAll('~', process.env.HOME || ''));
+            process.chdir(targetDir);
             return {
               _tag: ResultTag.Output,
               text: O.none

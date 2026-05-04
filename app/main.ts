@@ -12,6 +12,7 @@ import {
   ResultTag
 } from './types';
 import { spawnSync } from 'child_process';
+import { parseLine } from './parser';
 
 const rl = createInterface({
   input: process.stdin,
@@ -20,12 +21,6 @@ const rl = createInterface({
 });
 
 rl.prompt();
-
-const parseLine = (line: string): { name: string; args: CommandArgs } => {
-  const parts = line.trim().split(/\s+/).filter(Boolean);
-  const [name = '', ...args] = parts;
-  return { name, args };
-};
 
 const handleResult = (result: CommandResult) => {
   switch (result._tag) {
