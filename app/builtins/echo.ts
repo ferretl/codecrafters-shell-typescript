@@ -14,6 +14,6 @@ export const echo: Command = {
   eval: (args): IOEvalResult =>
     IOE.right({
       _tag: ResultTag.Output,
-      text: O.some(RA.intercalate(S.Monoid)(' ')(args))
+      text: pipe(RA.intercalate(S.Monoid)(' ')(args), O.some)
     })
 };

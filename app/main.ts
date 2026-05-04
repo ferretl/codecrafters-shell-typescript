@@ -57,7 +57,7 @@ export const runExecutable = (
     IOE.map(
       (output): CommandResult => ({
         _tag: ResultTag.Output,
-        text: O.fromNullable(output.trimEnd())
+        text: pipe(output.trimEnd(), O.some)
       })
     )
   );
