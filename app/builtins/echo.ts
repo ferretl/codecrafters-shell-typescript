@@ -5,8 +5,14 @@ import {
   type CommandArgs,
   type IOEvalResult
 } from '../types';
+import * as RA from 'fp-ts/ReadonlyArray';
+import * as S from 'fp-ts/string';
+import { pipe } from 'fp-ts/lib/function';
 
 export const echo: Command<CommandArgs> = {
   eval: (args: CommandArgs): IOEvalResult =>
-    IOE.right({ _tag: ResultTag.Output, text: args.join(' ') })
+    IOE.right({
+      _tag: ResultTag.Output,
+      text: RA.intercalate(S.Monoid)(' ')(args)
+    })
 };
