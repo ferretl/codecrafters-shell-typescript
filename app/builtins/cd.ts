@@ -12,7 +12,7 @@ export const cd: Command<CommandArgs> = {
     const targetDir = args[0];
     return IOE.tryCatch(
       () => {
-        process.chdir(targetDir);
+        process.chdir(targetDir.replaceAll('~', process.env.HOME || ''));
         return {
           _tag: ResultTag.Output,
           text: null
