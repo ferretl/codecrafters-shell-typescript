@@ -11,7 +11,7 @@ import * as O from 'fp-ts/Option';
 import { pipe } from 'fp-ts/lib/function';
 
 export const echo: Command = {
-  eval: (args: CommandArgs): IOEvalResult =>
+  eval: (args): IOEvalResult =>
     IOE.right({
       _tag: ResultTag.Output,
       text: O.some(RA.intercalate(S.Monoid)(' ')(args))
