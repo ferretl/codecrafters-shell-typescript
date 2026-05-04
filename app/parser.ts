@@ -3,64 +3,66 @@ import * as O from 'fp-ts/Option';
 import * as RA from 'fp-ts/ReadonlyArray';
 import { type CommandArgs } from './types';
 
+type QuoteMode = 'none' | 'single' | 'double';
+
 type ParseState = {
-  inSingleQuote: boolean;
-  inDoubleQuote: boolean;
+  quoteMode: QuoteMode;
   current: string;
   args: readonly string[];
 };
 
+const initialState: ParseState = {
+  quoteMode: 'none',
+  current: '',
+  args: []
+};
+
 const stepChar = (state: ParseState, char: string): ParseState => {
-  const append = (s: string) => ({ ...state, current: state.current + s });
-  const flush = () => ({
+  const append = (s: string): ParseState => ({
+    ...state,
+    current: state.current + s
+  });
+  const flush = (): ParseState => ({
     ...state,
     current: '',
-    args: [...state.args, state.current]
+    args: RA.append(state.current)(state.args)
   });
 
-  if (state.inSingleQuote)
-    return char === "'" ? { ...state, inSingleQuote: false } : append(char);
+  if (state.quoteMode === 'single')
+    return char === "'" ? { ...state, quoteMode: 'none' } : append(char);
 
-  if (state.inDoubleQuote)
-    return char === '"' ? { ...state, inDoubleQuote: false } : append(char);
+  if (state.quoteMode === 'double')
+    return char === '"' ? { ...state, quoteMode: 'none' } : append(char);
 
   switch (char) {
     case "'":
-      return { ...state, inSingleQuote: true };
-
+      return { ...state, quoteMode: 'single' };
     case '"':
-      return { ...state, inDoubleQuote: true };
-
+      return { ...state, quoteMode: 'double' };
     case ' ':
     case '\t':
       return state.current ? flush() : state;
-
     case '~':
-      return state.current ? append(char) : append(process.env.HOME ?? '~');
-
+      return append(state.current ? char : (process.env.HOME ?? '~'));
     default:
       return append(char);
   }
 };
 
 const parseArgs = (input: string): CommandArgs => {
-  const { current, args } = pipe(
-    [...input],
-    RA.reduce(
-      { inSingleQuote: false, inDoubleQuote: false, current: '', args: [] as readonly string[] },
-      stepChar
+  const { current, args } = pipe([...input], RA.reduce(initialState, stepChar));
+  return pipe(
+    O.fromPredicate((s: string) => s.length > 0)(current),
+    O.fold(
+      () => args,
+      (s) => RA.append(s)(args)
     )
   );
-  return current.length > 0 ? [...args, current] : args;
 };
 
 export const parseLine = (
   line: string
 ): { name: string; args: CommandArgs } => {
-  const name = pipe(
-    line.trim().split(/\s+/),
-    RA.head,
-    O.getOrElse(() => '')
-  );
-  return { name, args: parseArgs(line.trim().slice(name.length + 1)) };
+  const [name = '', ...args] = parseArgs(line.trim());
+  return { name, args };
 };
