@@ -11,12 +11,14 @@ const enum QuoteMode {
 
 type ParseState = {
   quoteMode: QuoteMode;
+  escaped: boolean;
   current: string;
-  args: readonly string[];
+  args: ReadonlyArray<string>;
 };
 
 const initialState: ParseState = {
   quoteMode: QuoteMode.None,
+  escaped: false,
   current: '',
   args: []
 };
@@ -24,6 +26,7 @@ const initialState: ParseState = {
 const stepChar = (state: ParseState, char: string): ParseState => {
   const append = (s: string): ParseState => ({
     ...state,
+    escaped: false,
     current: state.current + s
   });
   const flush = (): ParseState => ({
@@ -35,17 +38,22 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   const stepQuoted = (closeChar: string) =>
     char === closeChar ? { ...state, quoteMode: QuoteMode.None } : append(char);
 
+  if (state.escaped)
+    return { ...state, escaped: false, current: state.current + char };
+
   if (state.quoteMode === QuoteMode.Single) return stepQuoted("'");
   if (state.quoteMode === QuoteMode.Double) return stepQuoted('"');
 
   switch (char) {
     case "'":
-      return { ...state, quoteMode: QuoteMode.Single };
+      return { ...state, escaped: false, quoteMode: QuoteMode.Single };
     case '"':
-      return { ...state, quoteMode: QuoteMode.Double };
+      return { ...state, escaped: false, quoteMode: QuoteMode.Double };
     case ' ':
     case '\t':
       return state.current ? flush() : state;
+    case '\\':
+      return { ...state, escaped: true };
     case '~':
       return append(state.current ? char : (process.env.HOME ?? '~'));
     default:
