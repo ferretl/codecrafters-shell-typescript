@@ -88,7 +88,24 @@ const parseArgs = (input: string): CommandArgs => {
 
 export const parseLine = (
   line: string
-): { name: string; args: CommandArgs } => {
-  const [name = '', ...args] = parseArgs(line.trim());
-  return { name, args };
+): { name: string; args: CommandArgs; stdoutRedirect: O.Option<string> } => {
+  const [name = '', ...tokens] = parseArgs(line.trim());
+
+  const redirectIndex = pipe(
+    tokens,
+    RA.findIndex((arg) => arg === '>' || arg === '1>')
+  );
+
+  const stdoutRedirect = pipe(
+    redirectIndex,
+    O.chain((i) => pipe(tokens, RA.lookup(i + 1)))
+  );
+
+  const args = pipe(
+    redirectIndex,
+    O.map((i) => pipe(tokens, RA.takeLeft(i))),
+    O.getOrElse((): CommandArgs => tokens)
+  );
+
+  return { name, args, stdoutRedirect };
 };

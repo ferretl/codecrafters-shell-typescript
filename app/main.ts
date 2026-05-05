@@ -11,6 +11,7 @@ import {
   type CommandResult,
   ResultTag
 } from './types';
+import * as fs from 'fs';
 import { spawnSync } from 'child_process';
 import { parseLine } from './parser';
 
@@ -58,7 +59,7 @@ export const runExecutable = (
   );
 
 rl.on('line', (line) => {
-  const { name, args } = parseLine(line);
+  const { name, args, stdoutRedirect } = parseLine(line);
   if (S.isEmpty(name)) return rl.prompt();
 
   const evalResult = pipe(
@@ -78,7 +79,31 @@ rl.on('line', (line) => {
 
   pipe(
     evalResult,
-    E.match((err) => console.error(err.message), handleResult)
+    E.match(
+      (err) => console.error(err.message),
+      (result) =>
+        pipe(
+          stdoutRedirect,
+          O.match(
+            () => handleResult(result),
+            (filePath) => {
+              switch (result._tag) {
+                case ResultTag.Output:
+                  fs.writeFileSync(
+                    filePath,
+                    pipe(
+                      result.text,
+                      O.getOrElse(() => '')
+                    ) + '\n'
+                  );
+                  return;
+                case ResultTag.Exit:
+                  handleResult(result);
+              }
+            }
+          )
+        )
+    )
   );
 
   rl.prompt();
