@@ -35,11 +35,25 @@ const stepChar = (state: ParseState, char: string): ParseState => {
     args: RA.append(state.current)(state.args)
   });
 
-  const stepQuoted = (closeChar: string) =>
-    char === closeChar ? { ...state, quoteMode: QuoteMode.None } : append(char);
+  const stepQuoted = (closeChar: string) => {
+    if (char === '\\') return { ...state, escaped: true };
 
-  if (state.escaped)
+    return char === closeChar
+      ? { ...state, quoteMode: QuoteMode.None }
+      : append(char);
+  };
+  if (state.escaped && state.quoteMode === QuoteMode.None)
     return { ...state, escaped: false, current: state.current + char };
+
+  if (state.escaped && state.quoteMode === QuoteMode.Double) {
+    const specialChars = ['"', '\\'];
+    return {
+      ...state,
+      escaped: false,
+      current:
+        state.current + (specialChars.includes(char) ? char : '\\' + char)
+    };
+  }
 
   if (state.quoteMode === QuoteMode.Single) return stepQuoted("'");
   if (state.quoteMode === QuoteMode.Double) return stepQuoted('"');
