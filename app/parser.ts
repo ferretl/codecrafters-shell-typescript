@@ -36,8 +36,6 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   });
 
   const stepQuoted = (closeChar: string) => {
-    if (char === '\\') return { ...state, escaped: true };
-
     return char === closeChar
       ? { ...state, quoteMode: QuoteMode.None }
       : append(char);
@@ -56,7 +54,8 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   }
 
   if (state.quoteMode === QuoteMode.Single) return stepQuoted("'");
-  if (state.quoteMode === QuoteMode.Double) return stepQuoted('"');
+  if (state.quoteMode === QuoteMode.Double)
+    return char === '\\' ? { ...state, escaped: true } : stepQuoted('"');
 
   switch (char) {
     case "'":
