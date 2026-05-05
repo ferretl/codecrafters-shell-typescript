@@ -40,6 +40,7 @@ const stepChar = (state: ParseState, char: string): ParseState => {
       ? { ...state, quoteMode: QuoteMode.None }
       : append(char);
   };
+
   if (state.escaped && state.quoteMode === QuoteMode.None)
     return { ...state, escaped: false, current: state.current + char };
 
