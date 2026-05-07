@@ -23,10 +23,15 @@ const initialState: ParseState = {
   args: []
 };
 
+export type Redirect = {
+  path: string;
+  mode: 'overwrite' | 'append';
+};
+
 type TokenAccum = {
   args: CommandArgs;
   pendingOp: O.Option<string>;
-  redirects: Partial<Record<'stdout' | 'stderr', string>>;
+  redirects: Partial<Record<'stdout' | 'stderr', Redirect>>;
 };
 
 const initialTokenAccum: TokenAccum = {
@@ -35,10 +40,27 @@ const initialTokenAccum: TokenAccum = {
   redirects: {}
 };
 
-const isRedirectOp = (token: string) => ['>', '1>', '2>'].includes(token);
+const isRedirectOp = (token: string) =>
+  ['>', '1>', '>>', '1>>', '2>', '2>>'].includes(token);
 
-const opToKey = (op: string): 'stdout' | 'stderr' =>
-  op === '2>' ? 'stderr' : 'stdout';
+const opToRedirect = (
+  op: string
+): { key: 'stdout' | 'stderr'; mode: 'overwrite' | 'append' } => {
+  switch (op) {
+    case '>':
+    case '1>':
+      return { key: 'stdout', mode: 'overwrite' };
+    case '>>':
+    case '1>>':
+      return { key: 'stdout', mode: 'append' };
+    case '2>':
+      return { key: 'stderr', mode: 'overwrite' };
+    case '2>>':
+      return { key: 'stderr', mode: 'append' };
+    default:
+      return { key: 'stdout', mode: 'overwrite' };
+  }
+};
 
 const stepChar = (state: ParseState, char: string): ParseState => {
   const append = (s: string): ParseState => ({
@@ -100,11 +122,14 @@ const stepToken = (accum: TokenAccum, token: string): TokenAccum =>
         isRedirectOp(token)
           ? { ...accum, pendingOp: O.some(token) }
           : { ...accum, args: RA.append(token)(accum.args) },
-      (op) => ({
-        ...accum,
-        pendingOp: O.none,
-        redirects: { ...accum.redirects, [opToKey(op)]: token }
-      })
+      (op) => {
+        const { key, mode } = opToRedirect(op);
+        return {
+          ...accum,
+          pendingOp: O.none,
+          redirects: { ...accum.redirects, [key]: { path: token, mode } }
+        };
+      }
     )
   );
 
@@ -122,10 +147,11 @@ const parseArgs = (input: string): CommandArgs => {
 type parsedContents = {
   name: string;
   args: CommandArgs;
-  stdoutRedirect: O.Option<string>;
+  stdout: O.Option<Redirect>;
+  stderr: O.Option<Redirect>;
 };
 
-export default (line: string) => {
+export default (line: string): parsedContents => {
   const [name = '', ...tokens] = parseArgs(line.trim());
   const { args, redirects } = pipe(
     tokens,
@@ -135,7 +161,7 @@ export default (line: string) => {
   return {
     name,
     args,
-    stdoutRedirect: O.fromNullable(redirects.stdout),
-    stderrRedirect: O.fromNullable(redirects.stderr)
+    stdout: O.fromNullable(redirects.stdout),
+    stderr: O.fromNullable(redirects.stderr)
   };
 };

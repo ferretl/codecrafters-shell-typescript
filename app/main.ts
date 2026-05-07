@@ -14,7 +14,7 @@ import {
 } from './types';
 import * as fs from 'fs';
 import { spawnSync } from 'child_process';
-import parseLine from './parser';
+import parseLine, { type Redirect } from './parser';
 
 const rl = createInterface({
   input: process.stdin,
@@ -56,7 +56,7 @@ export const runExecutable = (
   );
 
 const handleStream = (
-  redirect: O.Option<string>,
+  redirect: O.Option<Redirect>,
   text: O.Option<string>,
   fallback: (s: string) => void
 ) =>
@@ -66,23 +66,23 @@ const handleStream = (
       () => {
         pipe(text, O.map(fallback));
       },
-      (path) => {
-        fs.writeFileSync(
-          path,
-          pipe(
-            text,
-            O.match(
-              () => '',
-              (s) => s + '\n'
-            )
+      ({ path, mode }) => {
+        const content = pipe(
+          text,
+          O.match(
+            () => '',
+            (s) => s + '\n'
           )
         );
+        fs.writeFileSync(path, content, {
+          flag: mode === 'append' ? 'a' : 'w'
+        });
       }
     )
   );
 
 rl.on('line', (line) => {
-  const { name, args, stdoutRedirect, stderrRedirect } = parseLine(line);
+  const { name, args, stdout, stderr } = parseLine(line);
   if (S.isEmpty(name)) return rl.prompt();
 
   const evalResult = pipe(
@@ -107,8 +107,8 @@ rl.on('line', (line) => {
       (result) => {
         switch (result._tag) {
           case ResultTag.Output:
-            handleStream(stdoutRedirect, result.text, console.log);
-            handleStream(stderrRedirect, result.errorText, console.error);
+            handleStream(stdout, result.text, console.log);
+            handleStream(stderr, result.errorText, console.error);
             break;
           case ResultTag.Exit:
             rl.close();
