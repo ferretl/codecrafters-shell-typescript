@@ -71,8 +71,11 @@ const handleStream = (
           path,
           pipe(
             text,
-            O.getOrElse(() => '')
-          ) + '\n'
+            O.match(
+              () => '',
+              (s) => s + '\n'
+            )
+          )
         );
       }
     )
