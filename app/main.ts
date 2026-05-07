@@ -92,7 +92,7 @@ rl.on('line', (line) => {
             (dir) => runExecutable(dir, name, args)
           )
         ),
-      (command) => command.eval(args)
+      (command) => command(args)
     )
   );
 
