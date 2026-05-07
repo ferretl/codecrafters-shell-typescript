@@ -23,51 +23,53 @@ const initialState: ParseState = {
   args: []
 };
 
+type RedirectKey = 'stdout' | 'stderr';
+type RedirectMode = 'overwrite' | 'append';
+type RedirectOperator = '>' | '1>' | '>>' | '1>>' | '2>' | '2>>';
+
 export type Redirect = {
   path: string;
-  mode: 'overwrite' | 'append';
+  mode: RedirectMode;
 };
 
-type TokenAccum = {
+type TokenAccumulator = {
   args: CommandArgs;
-  pendingOp: O.Option<string>;
-  redirects: Partial<Record<'stdout' | 'stderr', Redirect>>;
+  pendingOperator: O.Option<RedirectOperator>;
+  redirects: Record<RedirectKey, O.Option<Redirect>>;
 };
 
-const initialTokenAccum: TokenAccum = {
+const initialTokenAccum: TokenAccumulator = {
   args: [],
-  pendingOp: O.none,
-  redirects: {}
+  pendingOperator: O.none,
+  redirects: { stdout: O.none, stderr: O.none }
 };
 
-const isRedirectOp = (token: string) =>
-  ['>', '1>', '>>', '1>>', '2>', '2>>'].includes(token);
-
-const opToRedirect = (
-  op: string
-): { key: 'stdout' | 'stderr'; mode: 'overwrite' | 'append' } => {
-  switch (op) {
-    case '>':
-    case '1>':
-      return { key: 'stdout', mode: 'overwrite' };
-    case '>>':
-    case '1>>':
-      return { key: 'stdout', mode: 'append' };
-    case '2>':
-      return { key: 'stderr', mode: 'overwrite' };
-    case '2>>':
-      return { key: 'stderr', mode: 'append' };
-    default:
-      return { key: 'stdout', mode: 'overwrite' };
-  }
+const redirectMap: Record<
+  RedirectOperator,
+  { key: RedirectKey; mode: RedirectMode }
+> = {
+  '>': { key: 'stdout', mode: 'overwrite' },
+  '1>': { key: 'stdout', mode: 'overwrite' },
+  '>>': { key: 'stdout', mode: 'append' },
+  '1>>': { key: 'stdout', mode: 'append' },
+  '2>': { key: 'stderr', mode: 'overwrite' },
+  '2>>': { key: 'stderr', mode: 'append' }
 };
+
+const isRedirectOperator = (token: string): token is RedirectOperator =>
+  token in redirectMap;
+
+const operatorToRedirect = (
+  operator: RedirectOperator
+): { key: RedirectKey; mode: RedirectMode } => redirectMap[operator];
 
 const stepChar = (state: ParseState, char: string): ParseState => {
-  const append = (s: string): ParseState => ({
+  const append = (character: string): ParseState => ({
     ...state,
     escaped: false,
-    current: state.current + s
+    current: state.current + character
   });
+
   const flush = (): ParseState => ({
     ...state,
     current: '',
@@ -114,20 +116,29 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   }
 };
 
-const stepToken = (accum: TokenAccum, token: string): TokenAccum =>
+const stepToken = (
+  tokenAccumulator: TokenAccumulator,
+  token: string
+): TokenAccumulator =>
   pipe(
-    accum.pendingOp,
+    tokenAccumulator.pendingOperator,
     O.match(
       () =>
-        isRedirectOp(token)
-          ? { ...accum, pendingOp: O.some(token) }
-          : { ...accum, args: RA.append(token)(accum.args) },
-      (op) => {
-        const { key, mode } = opToRedirect(op);
+        isRedirectOperator(token)
+          ? { ...tokenAccumulator, pendingOperator: O.some(token) }
+          : {
+              ...tokenAccumulator,
+              args: RA.append(token)(tokenAccumulator.args)
+            },
+      (operator) => {
+        const { key, mode } = operatorToRedirect(operator);
         return {
-          ...accum,
-          pendingOp: O.none,
-          redirects: { ...accum.redirects, [key]: { path: token, mode } }
+          ...tokenAccumulator,
+          pendingOperator: O.none,
+          redirects: {
+            ...tokenAccumulator.redirects,
+            [key]: O.some({ path: token, mode })
+          }
         };
       }
     )
@@ -137,9 +148,9 @@ const parseArgs = (input: string): CommandArgs => {
   const { current, args } = pipe([...input], RA.reduce(initialState, stepChar));
   return pipe(
     O.fromPredicate((s: string) => s.length > 0)(current),
-    O.fold(
+    O.match(
       () => args,
-      (s) => RA.append(s)(args)
+      (character) => RA.append(character)(args)
     )
   );
 };
@@ -161,7 +172,7 @@ export default (line: string): parsedContents => {
   return {
     name,
     args,
-    stdout: O.fromNullable(redirects.stdout),
-    stderr: O.fromNullable(redirects.stderr)
+    stdout: redirects.stdout,
+    stderr: redirects.stderr
   };
 };
