@@ -1,5 +1,6 @@
 import * as IOE from 'fp-ts/lib/IOEither';
 import {
+  output,
   ResultTag,
   type Command,
   type CommandArgs,
@@ -12,8 +13,5 @@ import { pipe } from 'fp-ts/lib/function';
 
 export const echo: Command = {
   eval: (args): IOEvalResult =>
-    IOE.right({
-      _tag: ResultTag.Output,
-      text: pipe(RA.intercalate(S.Monoid)(' ')(args), O.some)
-    })
+    IOE.right(pipe(RA.intercalate(S.Monoid)(' ')(args), O.some, output))
 };

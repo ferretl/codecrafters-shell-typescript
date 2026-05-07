@@ -1,5 +1,6 @@
 import {
   ResultTag,
+  output,
   type Command,
   type CommandArgs,
   type IOEvalResult
@@ -13,8 +14,5 @@ import { pipe } from 'fp-ts/lib/function';
 
 export const pwd: Command = {
   eval: (): IOEvalResult =>
-    IOE.right({
-      _tag: ResultTag.Output,
-      text: pipe(fs.realpathSync(process.cwd()), O.some)
-    })
+    IOE.right(pipe(fs.realpathSync(process.cwd()), O.some, output))
 };

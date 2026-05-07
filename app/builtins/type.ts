@@ -3,6 +3,7 @@ import * as O from 'fp-ts/Option';
 import * as RA from 'fp-ts/ReadonlyArray';
 import {
   ResultTag,
+  output,
   type Command,
   type CommandArgs,
   type IOEvalResult
@@ -30,7 +31,7 @@ export const type: Command = {
             ),
             O.alt(() => O.some(`${name} not found`))
           );
-          return IOE.right({ _tag: ResultTag.Output, text });
+          return IOE.right(output(text));
         }
       )
     )

@@ -2,7 +2,8 @@ import {
   type Command,
   type CommandArgs,
   ResultTag,
-  type IOEvalResult
+  type IOEvalResult,
+  output
 } from '../types';
 import * as IOE from 'fp-ts/IOEither';
 import * as RA from 'fp-ts/ReadonlyArray';
@@ -17,10 +18,7 @@ export const cd: Command = {
         IOE.tryCatch(
           () => {
             process.chdir(targetDir);
-            return {
-              _tag: ResultTag.Output,
-              text: O.none
-            };
+            return output(O.none);
           },
           (_) => {
             return {
