@@ -5,13 +5,18 @@ export const enum ResultTag {
   Exit = 'Exit'
 }
 
-export type CommandResult =
-  | {
-      _tag: ResultTag.Output;
-      text: O.Option<string>;
-      errorText: O.Option<string>;
-    }
-  | { _tag: ResultTag.Exit; code: number };
+type OutputResult = {
+  _tag: ResultTag.Output;
+  text: O.Option<string>;
+  errorText: O.Option<string>;
+};
+
+type ExitResult = {
+  _tag: ResultTag.Exit;
+  code: number;
+};
+
+export type CommandResult = OutputResult | ExitResult;
 
 export const output = (
   text: O.Option<string>,
