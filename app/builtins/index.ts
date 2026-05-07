@@ -1,42 +1,45 @@
-import type { Command, CommandArgs } from '../types/Command';
+import type { Command } from '../types/Command';
+import { cd } from './cd';
+import { echo } from './echo';
+import { pwd } from './pwd';
+import { type } from './type';
+import { exit } from './exit';
 
 import * as O from 'fp-ts/Option';
 import * as A from 'fp-ts/Array';
+import * as E from 'fp-ts/Either';
 import { pipe } from 'fp-ts/lib/function';
 import path from 'path';
 import fs from 'fs';
 
-export type CommandName = string;
-
-export type CommandRegistry = Record<CommandName, Command>;
+export type CommandRegistry = Record<string, Command>;
 
 export type FilePath = string;
 
-// Dynamically import all built-in commands from the current directory
-export const builtins: CommandRegistry = pipe(
-  fs.readdirSync(__dirname),
-  A.filter((f) => f.endsWith('.ts') && f !== 'index.ts'),
-  A.map((f) => path.basename(f, '.ts')),
-  A.reduce({} as CommandRegistry, (acc, name) => ({
-    ...acc,
-    [name]: require(`./${name}`)[name]
-  }))
-);
+export const builtins = {
+  cd,
+  echo,
+  exit,
+  pwd,
+  type
+} as const satisfies CommandRegistry;
 
-export const findBuiltin = (builtinName: string): O.Option<Command> =>
-  O.fromNullable(builtins[builtinName]);
+export type BuiltinName = keyof typeof builtins;
+
+const isBuiltinName = (name: string): name is BuiltinName => name in builtins;
+
+export const findBuiltin = (name: string): O.Option<Command> =>
+  isBuiltinName(name) ? O.some(builtins[name]) : O.none;
+
+const isExecutable = (filePath: string): boolean =>
+  pipe(
+    O.tryCatch(() => fs.accessSync(filePath, fs.constants.X_OK)),
+    O.isSome
+  );
 
 export const findExecutable = (fileName: string): O.Option<FilePath> =>
   pipe(
     O.fromNullable(process.env.PATH),
-    O.map((pathContents) => pathContents.split(path.delimiter)),
-    O.chain(
-      A.findFirst((filePath) =>
-        O.isSome(
-          O.tryCatch(() => {
-            fs.accessSync(`${filePath}/${fileName}`, fs.constants.X_OK);
-          })
-        )
-      )
-    )
+    O.map((p) => p.split(path.delimiter)),
+    O.chain(A.findFirst((dir) => isExecutable(`${dir}/${fileName}`)))
   );
