@@ -5,10 +5,10 @@ import * as O from 'fp-ts/Option';
 import * as IOE from 'fp-ts/IOEither';
 import * as E from 'fp-ts/Either';
 import * as S from 'fp-ts/string';
+import * as IO from 'fp-ts/IO';
 import {
   type CommandArgs,
   type IOEvalResult,
-  type CommandResult,
   ResultTag,
   output
 } from './types';
@@ -24,60 +24,56 @@ const rl = createInterface({
 
 rl.prompt();
 
-export const runExecutable = (
-  dir: string,
-  name: string,
-  args: CommandArgs
-): IOEvalResult =>
-  pipe(
-    IOE.tryCatch(
-      () => {
-        const result = spawnSync(`${dir}/${name}`, [...args], {
-          argv0: name,
-          encoding: 'utf-8',
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-        return { stdout: result.stdout, stderr: result.stderr };
-      },
-      (): { message: string } => ({ message: `${name}: command failed` })
-    ),
-    IOE.map(({ stdout, stderr }) =>
-      output(
-        pipe(
-          stdout.trimEnd(),
-          O.fromPredicate((s) => s.length > 0)
-        ),
-        pipe(
-          stderr.trimEnd(),
-          O.fromPredicate((s) => s.length > 0)
-        )
-      )
-    )
-  );
+const nonEmpty = (s: string): O.Option<string> =>
+  S.isEmpty(s) ? O.none : O.some(s);
+
+export const runExecutable =
+  (dir: string, name: string, args: CommandArgs): IOEvalResult =>
+  () => {
+    const result = spawnSync(`${dir}/${name}`, [...args], {
+      argv0: name,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return result.error
+      ? E.left({ message: `${name}: ${result.error.message}` })
+      : E.right(
+          output(
+            nonEmpty(result.stdout.trimEnd()),
+            nonEmpty(result.stderr.trimEnd())
+          )
+        );
+  };
 
 const handleStream = (
   redirect: O.Option<Redirect>,
   text: O.Option<string>,
   fallback: (s: string) => void
-) =>
+): IO.IO<void> =>
   pipe(
     redirect,
     O.match(
-      () => {
-        pipe(text, O.map(fallback));
-      },
-      ({ path, mode }) => {
-        const content = pipe(
+      (): IO.IO<void> =>
+        pipe(
           text,
           O.match(
-            () => '',
-            (s) => s + '\n'
+            () => () => {},
+            (s) => () => fallback(s)
           )
-        );
-        fs.writeFileSync(path, content, {
-          flag: mode === 'append' ? 'a' : 'w'
-        });
-      }
+        ),
+      ({ path, mode }) =>
+        () => {
+          const content = pipe(
+            text,
+            O.match(
+              () => '',
+              (s) => s + '\n'
+            )
+          );
+          fs.writeFileSync(path, content, {
+            flag: mode === 'append' ? 'a' : 'w'
+          });
+        }
     )
   );
 
@@ -85,7 +81,7 @@ rl.on('line', (line) => {
   const { name, args, stdout, stderr } = parseLine(line);
   if (S.isEmpty(name)) return rl.prompt();
 
-  const evalResult = pipe(
+  const dispatch: IOEvalResult = pipe(
     findBuiltin(name),
     O.match(
       () =>
@@ -98,25 +94,31 @@ rl.on('line', (line) => {
         ),
       (command) => command.eval(args)
     )
-  )();
+  );
 
-  pipe(
-    evalResult,
-    E.match(
-      (err) => console.error(err.message),
+  const program: IO.IO<void> = pipe(
+    dispatch,
+    IOE.matchE(
+      (err) => () => console.error(err.message),
       (result) => {
         switch (result._tag) {
           case ResultTag.Output:
-            handleStream(stdout, result.text, console.log);
-            handleStream(stderr, result.errorText, console.error);
-            break;
+            return pipe(
+              handleStream(stdout, result.text, console.log),
+              IO.apSecond(
+                handleStream(stderr, result.errorText, console.error)
+              )
+            );
           case ResultTag.Exit:
-            rl.close();
-            process.exit(result.code);
+            return () => {
+              rl.close();
+              process.exit(result.code);
+            };
         }
       }
     )
   );
 
+  program();
   rl.prompt();
 });
