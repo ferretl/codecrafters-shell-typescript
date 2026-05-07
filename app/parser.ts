@@ -23,6 +23,23 @@ const initialState: ParseState = {
   args: []
 };
 
+type TokenAccum = {
+  args: CommandArgs;
+  pendingOp: O.Option<string>;
+  redirects: Partial<Record<'stdout' | 'stderr', string>>;
+};
+
+const initialTokenAccum: TokenAccum = {
+  args: [],
+  pendingOp: O.none,
+  redirects: {}
+};
+
+const isRedirectOp = (token: string) => ['>', '1>', '2>'].includes(token);
+
+const opToKey = (op: string): 'stdout' | 'stderr' =>
+  op === '2>' ? 'stderr' : 'stdout';
+
 const stepChar = (state: ParseState, char: string): ParseState => {
   const append = (s: string): ParseState => ({
     ...state,
@@ -75,6 +92,22 @@ const stepChar = (state: ParseState, char: string): ParseState => {
   }
 };
 
+const stepToken = (accum: TokenAccum, token: string): TokenAccum =>
+  pipe(
+    accum.pendingOp,
+    O.match(
+      () =>
+        isRedirectOp(token)
+          ? { ...accum, pendingOp: O.some(token) }
+          : { ...accum, args: RA.append(token)(accum.args) },
+      (op) => ({
+        ...accum,
+        pendingOp: O.none,
+        redirects: { ...accum.redirects, [opToKey(op)]: token }
+      })
+    )
+  );
+
 const parseArgs = (input: string): CommandArgs => {
   const { current, args } = pipe([...input], RA.reduce(initialState, stepChar));
   return pipe(
@@ -86,26 +119,23 @@ const parseArgs = (input: string): CommandArgs => {
   );
 };
 
-export const parseLine = (
-  line: string
-): { name: string; args: CommandArgs; stdoutRedirect: O.Option<string> } => {
+type parsedContents = {
+  name: string;
+  args: CommandArgs;
+  stdoutRedirect: O.Option<string>;
+};
+
+export default (line: string) => {
   const [name = '', ...tokens] = parseArgs(line.trim());
-
-  const redirectIndex = pipe(
+  const { args, redirects } = pipe(
     tokens,
-    RA.findIndex((arg) => arg === '>' || arg === '1>')
+    RA.reduce(initialTokenAccum, stepToken)
   );
 
-  const stdoutRedirect = pipe(
-    redirectIndex,
-    O.chain((i) => pipe(tokens, RA.lookup(i + 1)))
-  );
-
-  const args = pipe(
-    redirectIndex,
-    O.map((i) => pipe(tokens, RA.takeLeft(i))),
-    O.getOrElse((): CommandArgs => tokens)
-  );
-
-  return { name, args, stdoutRedirect };
+  return {
+    name,
+    args,
+    stdoutRedirect: O.fromNullable(redirects.stdout),
+    stderrRedirect: O.fromNullable(redirects.stderr)
+  };
 };

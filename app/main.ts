@@ -9,11 +9,12 @@ import {
   type CommandArgs,
   type IOEvalResult,
   type CommandResult,
-  ResultTag
+  ResultTag,
+  output
 } from './types';
 import * as fs from 'fs';
 import { spawnSync } from 'child_process';
-import { parseLine } from './parser';
+import parseLine from './parser';
 
 const rl = createInterface({
   input: process.stdin,
@@ -23,18 +24,6 @@ const rl = createInterface({
 
 rl.prompt();
 
-const handleResult = (result: CommandResult) => {
-  switch (result._tag) {
-    case ResultTag.Output:
-      pipe(result.text, O.map(console.log));
-      return;
-
-    case ResultTag.Exit:
-      rl.close();
-      process.exit(result.code);
-  }
-};
-
 export const runExecutable = (
   dir: string,
   name: string,
@@ -42,24 +31,55 @@ export const runExecutable = (
 ): IOEvalResult =>
   pipe(
     IOE.tryCatch(
-      () =>
-        spawnSync(`${dir}/${name}`, [...args], {
+      () => {
+        const result = spawnSync(`${dir}/${name}`, [...args], {
           argv0: name,
           encoding: 'utf-8',
-          stdio: ['pipe', 'pipe', 'inherit']
-        }).stdout,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+        return { stdout: result.stdout, stderr: result.stderr };
+      },
       (): { message: string } => ({ message: `${name}: command failed` })
     ),
-    IOE.map(
-      (output): CommandResult => ({
-        _tag: ResultTag.Output,
-        text: pipe(output.trimEnd(), O.some)
-      })
+    IOE.map(({ stdout, stderr }) =>
+      output(
+        pipe(
+          stdout.trimEnd(),
+          O.fromPredicate((s) => s.length > 0)
+        ),
+        pipe(
+          stderr.trimEnd(),
+          O.fromPredicate((s) => s.length > 0)
+        )
+      )
+    )
+  );
+
+const handleStream = (
+  redirect: O.Option<string>,
+  text: O.Option<string>,
+  fallback: (s: string) => void
+) =>
+  pipe(
+    redirect,
+    O.match(
+      () => {
+        pipe(text, O.map(fallback));
+      },
+      (path) => {
+        fs.writeFileSync(
+          path,
+          pipe(
+            text,
+            O.getOrElse(() => '')
+          ) + '\n'
+        );
+      }
     )
   );
 
 rl.on('line', (line) => {
-  const { name, args, stdoutRedirect } = parseLine(line);
+  const { name, args, stdoutRedirect, stderrRedirect } = parseLine(line);
   if (S.isEmpty(name)) return rl.prompt();
 
   const evalResult = pipe(
@@ -81,28 +101,17 @@ rl.on('line', (line) => {
     evalResult,
     E.match(
       (err) => console.error(err.message),
-      (result) =>
-        pipe(
-          stdoutRedirect,
-          O.match(
-            () => handleResult(result),
-            (filePath) => {
-              switch (result._tag) {
-                case ResultTag.Output:
-                  fs.writeFileSync(
-                    filePath,
-                    pipe(
-                      result.text,
-                      O.getOrElse(() => '')
-                    ) + '\n'
-                  );
-                  return;
-                case ResultTag.Exit:
-                  handleResult(result);
-              }
-            }
-          )
-        )
+      (result) => {
+        switch (result._tag) {
+          case ResultTag.Output:
+            handleStream(stdoutRedirect, result.text, console.log);
+            handleStream(stderrRedirect, result.errorText, console.error);
+            break;
+          case ResultTag.Exit:
+            rl.close();
+            process.exit(result.code);
+        }
+      }
     )
   );
 
