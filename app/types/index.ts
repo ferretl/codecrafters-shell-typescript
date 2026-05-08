@@ -1,3 +1,3 @@
-export * from './Result';
-export * from './Error';
-export * from './Command';
+export * from "./Command";
+export * from "./Error";
+export * from "./Result";

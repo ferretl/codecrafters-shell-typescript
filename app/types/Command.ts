@@ -1,6 +1,6 @@
-import * as IOE from 'fp-ts/IOEither';
-import type { CommandResult } from './Result';
-import type { CommandError } from './Error';
+import type * as IOE from "fp-ts/IOEither";
+import type { CommandError } from "./Error";
+import type { CommandResult } from "./Result";
 
 export type CommandArgs = ReadonlyArray<string>;
 

@@ -1,29 +1,29 @@
-import type { Command } from '../types/Command';
-import { cd } from './cd';
-import { echo } from './echo';
-import { pwd } from './pwd';
-import { type } from './type';
-import { exit } from './exit';
-import * as O from 'fp-ts/Option';
-import { isBuiltinName } from './lookup';
+import * as O from "fp-ts/Option";
+import type { Command } from "../types/Command";
+import { cd } from "./cd";
+import { echo } from "./echo";
+import { exit } from "./exit";
+import { isBuiltinName } from "./lookup";
+import { pwd } from "./pwd";
+import { type } from "./type";
 
 export type CommandRegistry = Record<string, Command>;
 
 export const builtins = {
-  cd,
-  echo,
-  exit,
-  pwd,
-  type
+	cd,
+	echo,
+	exit,
+	pwd,
+	type,
 } as const satisfies CommandRegistry;
 
 export const findBuiltin = (name: string): O.Option<Command> =>
-  isBuiltinName(name) ? O.some(builtins[name]) : O.none;
+	isBuiltinName(name) ? O.some(builtins[name]) : O.none;
 
 export {
-  builtinNames,
-  findExecutable,
-  isBuiltinName,
-  type BuiltinName,
-  type FilePath
-} from './lookup';
+	type BuiltinName,
+	builtinNames,
+	type FilePath,
+	findExecutable,
+	isBuiltinName,
+} from "./lookup";

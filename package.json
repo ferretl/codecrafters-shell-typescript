@@ -1,17 +1,17 @@
 {
-  "name": "@codecrafters/shell",
-  "description": "Build your own Shell challenge, from CodeCrafters",
-  "type": "module",
-  "scripts": {
-    "dev": "bun run app/main.ts",
-    "test": "bun test"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.14",
-    "@types/bun": "latest",
-    "@types/node": "^25.3.0"
-  },
-  "dependencies": {
-    "fp-ts": "^2.16.11"
-  }
+	"name": "@codecrafters/shell",
+	"description": "Build your own Shell challenge, from CodeCrafters",
+	"type": "module",
+	"scripts": {
+		"dev": "bun run app/main.ts",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.14",
+		"@types/bun": "latest",
+		"@types/node": "^25.3.0"
+	},
+	"dependencies": {
+		"fp-ts": "^2.16.11"
+	}
 }
