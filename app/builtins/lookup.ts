@@ -1,8 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
-import fs from "fs";
-import path from "path";
 
 export type FilePath = string;
 

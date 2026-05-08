@@ -51,7 +51,7 @@ const stepChar = (state: ParseState, char: string): ParseState => {
 			...state,
 			escaped: false,
 			current:
-				state.current + (specialChars.includes(char) ? char : "\\" + char),
+				state.current + (specialChars.includes(char) ? char : `\\${char}`),
 		};
 	}
 

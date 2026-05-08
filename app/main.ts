@@ -1,12 +1,12 @@
-import { spawnSync } from "child_process";
+import { spawnSync } from "node:child_process";
+import * as fs from "node:fs";
+import { createInterface } from "node:readline";
 import * as E from "fp-ts/Either";
 import * as IO from "fp-ts/IO";
 import * as IOE from "fp-ts/IOEither";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
-import * as fs from "fs";
-import { createInterface } from "readline";
 import { findBuiltin, findExecutable } from "./builtins";
 import parseLine, { type Redirect } from "./parser";
 import {
@@ -67,7 +67,7 @@ const handleStream = (
 						text,
 						O.match(
 							() => "",
-							(s) => s + "\n",
+							(s) => `${s}\n`,
 						),
 					);
 					fs.writeFileSync(path, content, {
