@@ -3,12 +3,12 @@
   "description": "Build your own Shell challenge, from CodeCrafters",
   "type": "module",
   "scripts": {
-    "dev": "bun run app/main.ts"
+    "dev": "bun run app/main.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^25.3.0",
-    "jest": "^30.4.0"
+    "@types/node": "^25.3.0"
   },
   "dependencies": {
     "fp-ts": "^2.16.11"
