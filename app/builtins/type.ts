@@ -2,7 +2,7 @@ import * as IOE from 'fp-ts/lib/IOEither';
 import * as O from 'fp-ts/Option';
 import * as RA from 'fp-ts/ReadonlyArray';
 import { output, type Command } from '../types';
-import { findBuiltin, findExecutable } from '.';
+import { isBuiltinName, findExecutable } from './lookup';
 import { pipe } from 'fp-ts/lib/function';
 
 export const type: Command = (args) =>
@@ -12,7 +12,7 @@ export const type: Command = (args) =>
       () => IOE.left({ message: 'No arguments given!' }),
       (name) => {
         const text = pipe(
-          findBuiltin(name),
+          O.fromPredicate(isBuiltinName)(name),
           O.map(() => `${name} is a shell builtin`),
           O.alt(() =>
             pipe(
