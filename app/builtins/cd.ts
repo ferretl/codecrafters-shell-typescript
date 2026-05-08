@@ -3,10 +3,11 @@ import * as IOE from 'fp-ts/IOEither';
 import * as RA from 'fp-ts/ReadonlyArray';
 import * as O from 'fp-ts/Option';
 import { pipe } from 'fp-ts/lib/function';
+import { homedir } from 'node:os';
 export const cd: Command = (args) =>
   pipe(
     RA.head(args),
-    O.getOrElse(() => '~'),
+    O.getOrElse(() => homedir()),
     (targetDir) =>
       IOE.tryCatch(
         () => {
