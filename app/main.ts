@@ -78,7 +78,12 @@ const handleStream = (
   );
 
 rl.on('line', (line) => {
-  const { name, args, stdout, stderr } = parseLine(line);
+  const parsed = parseLine(line);
+  if (parsed._tag === 'Left') {
+    console.error(parsed.left.message);
+    return rl.prompt();
+  }
+  const { name, args, stdout, stderr } = parsed.right;
   if (S.isEmpty(name)) return rl.prompt();
 
   const dispatch: IOEvalResult = pipe(
