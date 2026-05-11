@@ -8,6 +8,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
 import { findBuiltin, findExecutable } from "./builtins";
+import { completer } from "./completion";
 import parseLine, { type Redirect } from "./parser";
 import {
 	type CommandArgs,
@@ -20,6 +21,7 @@ const rl = createInterface({
 	input: process.stdin,
 	output: process.stdout,
 	prompt: "$ ",
+	completer,
 });
 
 rl.prompt();
