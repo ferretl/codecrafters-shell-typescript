@@ -71,7 +71,6 @@ describe("completer", () => {
 	test("changing the prefix resets the tab counter", () => {
 		const bell = mock();
 		const list = mock();
-		// 'ex' → exit + expand;  'ec' → echo (builtin) + echain (PATH)
 		const c = makeCompleter(
 			makeCompleteCommand(["exit", "expand", "echain"]),
 			bell,
