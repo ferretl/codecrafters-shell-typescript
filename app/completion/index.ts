@@ -1,9 +1,13 @@
+import * as RA from "fp-ts/ReadonlyArray";
 import { builtinNames } from "../builtins";
 
 export const completeBuiltins = (prefix: string): ReadonlyArray<string> =>
 	builtinNames.filter((builtinName) => builtinName.startsWith(prefix));
 
-// readline completer signature: returns [matches, original substring]
 export const completer = (line: string): [ReadonlyArray<string>, string] => {
-	return [completeBuiltins(line).map((builtinName) => `${builtinName} `), line];
+	const matches = completeBuiltins(line).map(
+		(builtinName) => `${builtinName} `,
+	);
+	if (RA.isEmpty(matches)) process.stdout.write("\x07");
+	return [matches, line];
 };
