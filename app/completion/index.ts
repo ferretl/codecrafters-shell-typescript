@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/function";
+import type * as IO from "fp-ts/IO";
 import { newIORef } from "fp-ts/lib/IORef";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
@@ -45,8 +46,8 @@ export const makeCompleteCommand =
 
 export const makeCompleter = (
 	completeCommand: (prefix: string) => string[],
-	bell: () => void,
-	list: (matches: string[], line: string) => void,
+	bell: IO.IO<void>,
+	list: (matches: string[], line: string) => IO.IO<void>,
 ): ((line: string) => [string[], string]) => {
 	const lastAmbiguous = newIORef("")();
 
@@ -64,16 +65,13 @@ export const makeCompleter = (
 			return [matches, line];
 		}
 
-		// multiple matches
 		if (lastAmbiguous.read() !== line) {
-			// first tab on this prefix
 			bell();
 			lastAmbiguous.write(line)();
 			return [[], line];
 		}
 
-		// second tab on the same prefix — print the list ourselves
-		list(matches, line);
+		list(matches, line)();
 		lastAmbiguous.write("")();
 		return [[], line];
 	};
@@ -85,7 +83,7 @@ export const completeCommand = makeCompleteCommand(cachedExecutables);
 export const completer = makeCompleter(
 	completeCommand,
 	() => process.stdout.write("\x07"),
-	(matches, line) => {
+	(matches, line) => () => {
 		const formatted = matches.map((match) => match.trimEnd()).join("  ");
 		process.stdout.write(`\n${formatted}\n$ ${line}`);
 	},
