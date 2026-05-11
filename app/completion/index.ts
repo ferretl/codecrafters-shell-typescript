@@ -49,30 +49,30 @@ export const makeCompleter = (
 	bell: IO.IO<void>,
 	list: (matches: string[], line: string) => IO.IO<void>,
 ): ((line: string) => [string[], string]) => {
-	const lastAmbiguous = newIORef("")();
+	const lastAmbiguousLine = newIORef("")();
 
 	return (line) => {
 		const matches = completeCommand(line);
 
 		if (A.isEmpty(matches)) {
 			bell();
-			lastAmbiguous.write("")();
+			lastAmbiguousLine.write("")();
 			return [[], line];
 		}
 
 		if (matches.length === 1) {
-			lastAmbiguous.write("")();
+			lastAmbiguousLine.write("")();
 			return [matches, line];
 		}
 
-		if (lastAmbiguous.read() !== line) {
+		if (lastAmbiguousLine.read() !== line) {
 			bell();
-			lastAmbiguous.write(line)();
+			lastAmbiguousLine.write(line)();
 			return [[], line];
 		}
 
 		list(matches, line)();
-		lastAmbiguous.write("")();
+		lastAmbiguousLine.write("")();
 		return [[], line];
 	};
 };
