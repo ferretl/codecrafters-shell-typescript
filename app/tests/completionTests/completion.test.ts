@@ -27,58 +27,60 @@ describe("completeCommand", () => {
 	});
 
 	test("includes PATH executables alongside builtins, sorted", () => {
-		const c = makeCompleteCommand(["custom_executable"]);
-		expect(c("c")).toEqual(["cd ", "custom_executable "]);
+		const completer = makeCompleteCommand(["custom_executable"]);
+		expect(completer("c")).toEqual(["cd ", "custom_executable "]);
 	});
 
 	test("deduplicates when builtin and PATH share a name", () => {
-		const c = makeCompleteCommand(["echo"]);
-		expect(c("echo")).toEqual(["echo "]);
+		const completer = makeCompleteCommand(["echo"]);
+		expect(completer("echo")).toEqual(["echo "]);
 	});
 });
 
 describe("completer", () => {
 	test("rings bell on first tab when matches are ambiguous", () => {
 		const bell = mock();
-		const list = mock();
-		const c = makeCompleter(
+		const list = mock(() => () => {});
+		const completer = makeCompleter(
 			makeCompleteCommand(["exit", "expand"]),
 			bell,
 			list,
 		);
 
-		expect(c("ex")).toEqual([[], "ex"]);
+		expect(completer("ex")).toEqual([[], "ex"]);
 		expect(bell).toHaveBeenCalledTimes(1);
 		expect(list).not.toHaveBeenCalled();
 	});
 
 	test("lists matches on second tab with the same prefix", () => {
 		const bell = mock();
-		const list = mock();
-		const c = makeCompleter(
+		const listEffect = mock();
+		const list = mock((_matches: string[], _line: string) => listEffect);
+		const completer = makeCompleter(
 			makeCompleteCommand(["exit", "expand"]),
 			bell,
 			list,
 		);
 
-		c("ex");
-		c("ex");
+		completer("ex");
+		completer("ex");
 
 		expect(list).toHaveBeenCalledTimes(1);
-		expect(list.mock.calls[0]).toEqual([["exit ", "expand "].sort(), "ex"]);
+		expect(list.mock.calls[0]).toEqual([["exit ", "expand "], "ex"]);
+		expect(listEffect).toHaveBeenCalledTimes(1);
 	});
 
 	test("changing the prefix resets the tab counter", () => {
 		const bell = mock();
-		const list = mock();
-		const c = makeCompleter(
+		const list = mock(() => () => {});
+		const completer = makeCompleter(
 			makeCompleteCommand(["exit", "expand", "echain"]),
 			bell,
 			list,
 		);
 
-		c("ex");
-		c("ec");
+		completer("ex");
+		completer("ec");
 
 		expect(bell).toHaveBeenCalledTimes(2);
 		expect(list).not.toHaveBeenCalled();
