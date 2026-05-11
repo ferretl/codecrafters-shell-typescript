@@ -9,29 +9,31 @@ export type { Redirect } from "./redirects";
 
 export type ParseError = { message: string };
 
-type parsedContents = {
+type ParsedContents = {
 	name: string;
 	args: CommandArgs;
 	stdout: O.Option<Redirect>;
 	stderr: O.Option<Redirect>;
 };
 
-export default (line: string): E.Either<ParseError, parsedContents> => {
-	const [name = "", ...tokens] = tokenize(line.trim());
-	const { args, pendingOperator, redirects } = reduceTokens(tokens);
+type ParseResult = E.Either<ParseError, ParsedContents>;
+
+export default (line: string): ParseResult => {
+	const [name = "", ...tokens] = pipe(line.trim(), tokenize);
+	const { args, pendingOperator, redirects } = pipe(tokens, reduceTokens);
 
 	return pipe(
 		pendingOperator,
 		O.match(
 			() =>
-				E.right<ParseError, parsedContents>({
+				E.right({
 					name,
 					args,
 					stdout: redirects.stdout,
 					stderr: redirects.stderr,
 				}),
 			(operator) =>
-				E.left<ParseError, parsedContents>({
+				E.left({
 					message: `syntax error: missing target for redirect '${operator}'`,
 				}),
 		),
