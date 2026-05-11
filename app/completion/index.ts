@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/function";
+import { newIORef } from "fp-ts/lib/IORef";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
 import { builtinNames } from "../builtins";
-import { newIORef } from "fp-ts/lib/IORef";
 
 const readDirSafe = (dir: string): string[] =>
 	pipe(
