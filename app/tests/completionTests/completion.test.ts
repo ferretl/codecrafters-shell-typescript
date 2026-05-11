@@ -38,29 +38,50 @@ describe("completeCommand", () => {
 });
 
 describe("completer", () => {
-	const noopBell = () => {};
-
-	test("returns matches and the original line unchanged", () => {
-		const completer = makeCompleter(makeCompleteCommand([]), noopBell);
-		expect(completer("ec")).toEqual([["echo "], "ec"]);
-	});
-
-	test("returns empty matches when nothing matches the prefix", () => {
-		const completer = makeCompleter(makeCompleteCommand([]), noopBell);
-		expect(completer("xyz")).toEqual([[], "xyz"]);
-	});
-
-	test("rings the bell when there are no matches", () => {
+	test("rings bell on first tab when matches are ambiguous", () => {
 		const bell = mock();
-		const completer = makeCompleter(makeCompleteCommand([]), bell);
-		completer("xyz");
+		const list = mock();
+		const c = makeCompleter(
+			makeCompleteCommand(["exit", "expand"]),
+			bell,
+			list,
+		);
+
+		expect(c("ex")).toEqual([[], "ex"]);
 		expect(bell).toHaveBeenCalledTimes(1);
+		expect(list).not.toHaveBeenCalled();
 	});
 
-	test("does not ring the bell when there is a match", () => {
+	test("lists matches on second tab with the same prefix", () => {
 		const bell = mock();
-		const completer = makeCompleter(makeCompleteCommand([]), bell);
-		completer("ec");
-		expect(bell).not.toHaveBeenCalled();
+		const list = mock();
+		const c = makeCompleter(
+			makeCompleteCommand(["exit", "expand"]),
+			bell,
+			list,
+		);
+
+		c("ex");
+		c("ex");
+
+		expect(list).toHaveBeenCalledTimes(1);
+		expect(list.mock.calls[0]).toEqual([["exit ", "expand "].sort(), "ex"]);
+	});
+
+	test("changing the prefix resets the tab counter", () => {
+		const bell = mock();
+		const list = mock();
+		// 'ex' → exit + expand;  'ec' → echo (builtin) + echain (PATH)
+		const c = makeCompleter(
+			makeCompleteCommand(["exit", "expand", "echain"]),
+			bell,
+			list,
+		);
+
+		c("ex");
+		c("ec");
+
+		expect(bell).toHaveBeenCalledTimes(2);
+		expect(list).not.toHaveBeenCalled();
 	});
 });

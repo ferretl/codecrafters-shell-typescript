@@ -5,6 +5,7 @@ import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
 import { builtinNames } from "../builtins";
+import { newIORef } from "fp-ts/lib/IORef";
 
 const readDirSafe = (dir: string): string[] =>
 	pipe(
@@ -42,17 +43,50 @@ export const makeCompleteCommand =
 			A.map((name) => `${name} `),
 		);
 
-export const makeCompleter =
-	(completeCommand: (prefix: string) => string[], bell: () => void) =>
-	(line: string): [string[], string] => {
+export const makeCompleter = (
+	completeCommand: (prefix: string) => string[],
+	bell: () => void,
+	list: (matches: string[], line: string) => void,
+): ((line: string) => [string[], string]) => {
+	const lastAmbiguous = newIORef("")();
+
+	return (line) => {
 		const matches = completeCommand(line);
-		if (A.isEmpty(matches)) bell();
-		return [matches, line];
+
+		if (A.isEmpty(matches)) {
+			bell();
+			lastAmbiguous.write("")();
+			return [[], line];
+		}
+
+		if (matches.length === 1) {
+			lastAmbiguous.write("")();
+			return [matches, line];
+		}
+
+		// multiple matches
+		if (lastAmbiguous.read() !== line) {
+			// first tab on this prefix
+			bell();
+			lastAmbiguous.write(line)();
+			return [[], line];
+		}
+
+		// second tab on the same prefix — print the list ourselves
+		list(matches, line);
+		lastAmbiguous.write("")();
+		return [[], line];
 	};
+};
 
 const cachedExecutables = listPathExecutables();
 
 export const completeCommand = makeCompleteCommand(cachedExecutables);
-export const completer = makeCompleter(completeCommand, () =>
-	process.stdout.write("\x07"),
+export const completer = makeCompleter(
+	completeCommand,
+	() => process.stdout.write("\x07"),
+	(matches, line) => {
+		const formatted = matches.map((match) => match.trimEnd()).join("  ");
+		process.stdout.write(`\n${formatted}\n$ ${line}`);
+	},
 );
