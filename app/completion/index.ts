@@ -84,7 +84,11 @@ export const completer = makeCompleter(
 	completeCommand,
 	() => process.stdout.write("\x07"),
 	(matches, line) => () => {
-		const formatted = matches.map((match) => match.trimEnd()).join("  ");
+		const formatted = pipe(
+			matches,
+			A.map(S.trimRight),
+			A.intercalate(S.Monoid)("	"),
+		);
 		process.stdout.write(`\n${formatted}\n$ ${line}`);
 	},
 );
