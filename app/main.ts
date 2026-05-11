@@ -22,6 +22,7 @@ const rl = createInterface({
 	output: process.stdout,
 	prompt: "$ ",
 	completer,
+	terminal: true,
 });
 
 rl.prompt();
