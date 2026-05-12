@@ -1,19 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
-import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/function";
 import type * as IO from "fp-ts/IO";
 import { newIORef } from "fp-ts/lib/IORef";
 import * as O from "fp-ts/Option";
+import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import { builtinNames } from "../builtins";
 import { type CompletionResult, CompletionTag } from "./CompletionResult";
 import { longestCommonPrefix } from "./longestCommonPrefix";
 
-const readDirSafe = (dir: string): string[] =>
+const readDirSafe = (dir: string): ReadonlyArray<string> =>
 	pipe(
 		O.tryCatch(() => fs.readdirSync(dir)),
-		O.getOrElse((): string[] => []),
+		O.getOrElse((): ReadonlyArray<string> => []),
 	);
 
 const isExecutable = (filePath: string): boolean =>
@@ -22,31 +22,31 @@ const isExecutable = (filePath: string): boolean =>
 		O.isSome,
 	);
 
-const listExecutablesInDir = (dir: string): string[] =>
+const listExecutablesInDir = (dir: string): ReadonlyArray<string> =>
 	pipe(
 		readDirSafe(dir),
-		A.filter((name) => isExecutable(path.join(dir, name))),
+		RA.filter((name) => isExecutable(path.join(dir, name))),
 	);
 
-export const listPathExecutables = (): string[] =>
+export const listPathExecutables = (): ReadonlyArray<string> =>
 	pipe(
 		O.fromNullable(process.env.PATH),
 		O.map((PATH) => PATH.split(path.delimiter)),
-		O.getOrElse((): string[] => []),
-		A.chain(listExecutablesInDir),
+		O.getOrElse((): ReadonlyArray<string> => []),
+		RA.chain(listExecutablesInDir),
 	);
 
 export const makeCompleteCommand =
-	(executables: string[]) =>
+	(executables: ReadonlyArray<string>) =>
 	(input: string): CompletionResult => {
 		const matches = pipe(
 			[...builtinNames, ...executables],
-			A.filter(S.startsWith(input)),
-			A.uniq(S.Eq),
-			A.sort(S.Ord),
-			A.map((name) => `${name} `),
+			RA.filter(S.startsWith(input)),
+			RA.uniq(S.Eq),
+			RA.sort(S.Ord),
+			RA.map((name) => `${name} `),
 		);
-		if (A.isEmpty(matches)) {
+		if (RA.isEmpty(matches)) {
 			return {
 				_tag: CompletionTag.NoMatch,
 			};
