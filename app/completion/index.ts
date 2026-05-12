@@ -1,81 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
-import * as A from "fp-ts/Array";
 import { pipe } from "fp-ts/function";
-import type * as IO from "fp-ts/IO";
-import { newIORef } from "fp-ts/lib/IORef";
-import * as O from "fp-ts/Option";
+import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
-import { builtinNames } from "../builtins";
+import {
+	listPathExecutables,
+	makeCompleteCommand,
+	makeCompleter,
+} from "./completionComand";
 
-const readDirSafe = (dir: string): string[] =>
-	pipe(
-		O.tryCatch(() => fs.readdirSync(dir)),
-		O.getOrElse((): string[] => []),
-	);
-
-const isExecutable = (filePath: string): boolean =>
-	pipe(
-		O.tryCatch(() => fs.accessSync(filePath, fs.constants.X_OK)),
-		O.isSome,
-	);
-
-const listExecutablesInDir = (dir: string): string[] =>
-	pipe(
-		readDirSafe(dir),
-		A.filter((name) => isExecutable(path.join(dir, name))),
-	);
-
-const listPathExecutables = (): string[] =>
-	pipe(
-		O.fromNullable(process.env.PATH),
-		O.map((PATH) => PATH.split(path.delimiter)),
-		O.getOrElse((): string[] => []),
-		A.chain(listExecutablesInDir),
-	);
-
-export const makeCompleteCommand =
-	(executables: string[]) => (prefix: string) =>
-		pipe(
-			[...builtinNames, ...executables],
-			A.filter(S.startsWith(prefix)),
-			A.uniq(S.Eq),
-			A.sort(S.Ord),
-			A.map((name) => `${name} `),
-		);
-
-export const makeCompleter = (
-	completeCommand: (prefix: string) => string[],
-	bell: IO.IO<void>,
-	list: (matches: string[], line: string) => IO.IO<void>,
-): ((line: string) => [string[], string]) => {
-	const lastAmbiguousLine = newIORef("")();
-
-	return (line) => {
-		const matches = completeCommand(line);
-
-		if (A.isEmpty(matches)) {
-			bell();
-			lastAmbiguousLine.write("")();
-			return [[], line];
-		}
-
-		if (matches.length === 1) {
-			lastAmbiguousLine.write("")();
-			return [matches, line];
-		}
-
-		if (lastAmbiguousLine.read() !== line) {
-			bell();
-			lastAmbiguousLine.write(line)();
-			return [[], line];
-		}
-
-		list(matches, line)();
-		lastAmbiguousLine.write("")();
-		return [[], line];
-	};
-};
 const cachedExecutables = listPathExecutables();
 
 export const completeCommand = makeCompleteCommand(cachedExecutables);
@@ -85,8 +16,8 @@ export const completer = makeCompleter(
 	(matches, line) => () => {
 		const formatted = pipe(
 			matches,
-			A.map(S.trimRight),
-			A.intercalate(S.Monoid)("\t"),
+			RA.map(S.trimRight),
+			RA.intercalate(S.Monoid)("\t"),
 		);
 		process.stdout.write(`\n${formatted}\n$ ${line}`);
 	},
