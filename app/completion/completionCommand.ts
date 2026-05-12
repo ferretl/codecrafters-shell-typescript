@@ -22,10 +22,24 @@ const isExecutable = (filePath: string): boolean =>
 		O.isSome,
 	);
 
+const isFile = (filePath: string): boolean =>
+	pipe(
+		O.tryCatch(() => fs.accessSync(filePath, fs.constants.F_OK)),
+		O.isSome,
+	);
+
 const listExecutablesInDir = (dir: string): ReadonlyArray<string> =>
 	pipe(
 		readDirSafe(dir),
 		RA.filter((name) => isExecutable(path.join(dir, name))),
+	);
+
+export const listFilesInDir = (
+	dir: string = process.cwd(),
+): ReadonlyArray<string> =>
+	pipe(
+		readDirSafe(dir),
+		RA.filter((name) => isFile(path.join(dir, name))),
 	);
 
 export const listPathExecutables = (): ReadonlyArray<string> =>
@@ -37,10 +51,10 @@ export const listPathExecutables = (): ReadonlyArray<string> =>
 	);
 
 export const makeCompleteCommand =
-	(executables: ReadonlyArray<string>) =>
+	(executables: ReadonlyArray<string>, files: ReadonlyArray<string>) =>
 	(input: string): CompletionResult => {
 		const matches = pipe(
-			[...builtinNames, ...executables],
+			[...builtinNames, ...executables, ...files],
 			RA.filter(S.startsWith(input)),
 			RA.uniq(S.Eq),
 			RA.sort(S.Ord),

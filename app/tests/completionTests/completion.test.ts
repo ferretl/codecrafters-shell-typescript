@@ -6,7 +6,7 @@ import {
 } from "../../completion/completionCommand";
 
 describe("completeCommand", () => {
-	const completeCommand = makeCompleteCommand([]);
+	const completeCommand = makeCompleteCommand([], []);
 
 	test("returns Complete for a unique builtin prefix", () => {
 		expect(completeCommand("ec")).toEqual({
@@ -23,7 +23,7 @@ describe("completeCommand", () => {
 	});
 
 	test("returns PartialComplete when LCP extends past input", () => {
-		const completer = makeCompleteCommand(["custom_a", "custom_b"]);
+		const completer = makeCompleteCommand(["custom_a", "custom_b"], []);
 		expect(completer("cu")).toEqual({
 			_tag: CompletionTag.PartialComplete,
 			value: "custom_",
@@ -42,7 +42,7 @@ describe("completeCommand", () => {
 	});
 
 	test("includes PATH executables in matches alongside builtins", () => {
-		const completer = makeCompleteCommand(["custom_executable"]);
+		const completer = makeCompleteCommand(["custom_executable"], []);
 		expect(completer("c")).toEqual({
 			_tag: CompletionTag.ShowMatches,
 			matches: ["cd ", "custom_executable "],
@@ -50,7 +50,23 @@ describe("completeCommand", () => {
 	});
 
 	test("deduplicates when builtin and PATH share a name", () => {
-		const completer = makeCompleteCommand(["echo"]);
+		const completer = makeCompleteCommand(["echo"], []);
+		expect(completer("echo")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "echo ",
+		});
+	});
+
+	test("includes files in matches alongside builtins and PATH", () => {
+		const completer = makeCompleteCommand([], ["main.ts", "package.json"]);
+		expect(completer("m")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "main.ts ",
+		});
+	});
+
+	test("deduplicates when a builtin and a file share a name", () => {
+		const completer = makeCompleteCommand([], ["echo"]);
 		expect(completer("echo")).toEqual({
 			_tag: CompletionTag.Complete,
 			value: "echo ",

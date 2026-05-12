@@ -2,6 +2,7 @@ import { pipe } from "fp-ts/function";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import {
+	listFilesInDir,
 	listPathExecutables,
 	makeCompleteCommand,
 	makeCompleter,
@@ -9,7 +10,10 @@ import {
 
 const cachedExecutables = listPathExecutables();
 
-export const completeCommand = makeCompleteCommand(cachedExecutables);
+export const completeCommand = makeCompleteCommand(
+	cachedExecutables,
+	listFilesInDir(),
+);
 export const completer = makeCompleter(
 	completeCommand,
 	() => process.stdout.write("\x07"),
