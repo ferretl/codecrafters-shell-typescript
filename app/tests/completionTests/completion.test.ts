@@ -3,7 +3,7 @@ import { CompletionTag } from "../../completion/CompletionResult";
 import {
 	makeCompleteCommand,
 	makeCompleter,
-} from "../../completion/completionComand";
+} from "../../completion/completionCommand";
 
 describe("completeCommand", () => {
 	const completeCommand = makeCompleteCommand([]);

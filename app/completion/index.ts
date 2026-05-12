@@ -5,7 +5,7 @@ import {
 	listPathExecutables,
 	makeCompleteCommand,
 	makeCompleter,
-} from "./completionComand";
+} from "./completionCommand";
 
 const cachedExecutables = listPathExecutables();
 
