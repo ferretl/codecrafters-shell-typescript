@@ -1,48 +1,114 @@
 import { describe, expect, mock, test } from "bun:test";
-import { makeCompleteCommand, makeCompleter } from "../../completion";
+import { CompletionTag } from "../../completion/CompletionResult";
+import {
+	makeCompleteCommand,
+	makeCompleter,
+} from "../../completion/completionComand";
 
 describe("completeCommand", () => {
 	const completeCommand = makeCompleteCommand([]);
 
-	test("matches a single builtin by prefix", () => {
-		expect(completeCommand("ec")).toEqual(["echo "]);
+	test("returns Complete for a unique builtin prefix", () => {
+		expect(completeCommand("ec")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "echo ",
+		});
 	});
 
-	test("matches multiple builtins with a shared prefix", () => {
-		expect(completeCommand("e")).toEqual(["echo ", "exit "]);
+	test("returns ShowMatches when matches share no prefix beyond input", () => {
+		expect(completeCommand("e")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["echo ", "exit "],
+		});
 	});
 
-	test("returns all builtins for empty prefix, sorted", () => {
-		expect(completeCommand("")).toEqual([
-			"cd ",
-			"echo ",
-			"exit ",
-			"pwd ",
-			"type ",
-		]);
+	test("returns PartialComplete when LCP extends past input", () => {
+		const completer = makeCompleteCommand(["custom_a", "custom_b"]);
+		expect(completer("cu")).toEqual({
+			_tag: CompletionTag.PartialComplete,
+			value: "custom_",
+		});
 	});
 
-	test("returns empty for an unknown prefix", () => {
-		expect(completeCommand("xyz")).toEqual([]);
+	test("returns ShowMatches for empty prefix, sorted", () => {
+		expect(completeCommand("")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["cd ", "echo ", "exit ", "pwd ", "type "],
+		});
 	});
 
-	test("includes PATH executables alongside builtins, sorted", () => {
+	test("returns NoMatch for an unknown prefix", () => {
+		expect(completeCommand("xyz")).toEqual({ _tag: CompletionTag.NoMatch });
+	});
+
+	test("includes PATH executables in matches alongside builtins", () => {
 		const completer = makeCompleteCommand(["custom_executable"]);
-		expect(completer("c")).toEqual(["cd ", "custom_executable "]);
+		expect(completer("c")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["cd ", "custom_executable "],
+		});
 	});
 
 	test("deduplicates when builtin and PATH share a name", () => {
 		const completer = makeCompleteCommand(["echo"]);
-		expect(completer("echo")).toEqual(["echo "]);
+		expect(completer("echo")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "echo ",
+		});
 	});
 });
 
 describe("completer", () => {
-	test("rings bell on first tab when matches are ambiguous", () => {
+	test("rings bell and returns empty on NoMatch", () => {
 		const bell = mock();
 		const list = mock(() => () => {});
 		const completer = makeCompleter(
-			makeCompleteCommand(["exit", "expand"]),
+			() => ({ _tag: CompletionTag.NoMatch }),
+			bell,
+			list,
+		);
+
+		expect(completer("xyz")).toEqual([[], "xyz"]);
+		expect(bell).toHaveBeenCalledTimes(1);
+		expect(list).not.toHaveBeenCalled();
+	});
+
+	test("returns the value on Complete without ringing the bell", () => {
+		const bell = mock();
+		const list = mock(() => () => {});
+		const completer = makeCompleter(
+			() => ({ _tag: CompletionTag.Complete, value: "echo " }),
+			bell,
+			list,
+		);
+
+		expect(completer("ec")).toEqual([["echo "], "ec"]);
+		expect(bell).not.toHaveBeenCalled();
+		expect(list).not.toHaveBeenCalled();
+	});
+
+	test("returns the prefix on PartialComplete without ringing the bell", () => {
+		const bell = mock();
+		const list = mock(() => () => {});
+		const completer = makeCompleter(
+			() => ({ _tag: CompletionTag.PartialComplete, value: "custom_" }),
+			bell,
+			list,
+		);
+
+		expect(completer("cu")).toEqual([["custom_"], "cu"]);
+		expect(bell).not.toHaveBeenCalled();
+		expect(list).not.toHaveBeenCalled();
+	});
+
+	test("rings bell on first tab when result is ShowMatches", () => {
+		const bell = mock();
+		const list = mock(() => () => {});
+		const completer = makeCompleter(
+			() => ({
+				_tag: CompletionTag.ShowMatches,
+				matches: ["exit ", "expand "],
+			}),
 			bell,
 			list,
 		);
@@ -55,9 +121,14 @@ describe("completer", () => {
 	test("lists matches on second tab with the same prefix", () => {
 		const bell = mock();
 		const listEffect = mock();
-		const list = mock((_matches: string[], _line: string) => listEffect);
+		const list = mock(
+			(_matches: ReadonlyArray<string>, _line: string) => listEffect,
+		);
 		const completer = makeCompleter(
-			makeCompleteCommand(["exit", "expand"]),
+			() => ({
+				_tag: CompletionTag.ShowMatches,
+				matches: ["exit ", "expand "],
+			}),
 			bell,
 			list,
 		);
@@ -74,7 +145,10 @@ describe("completer", () => {
 		const bell = mock();
 		const list = mock(() => () => {});
 		const completer = makeCompleter(
-			makeCompleteCommand(["exit", "expand", "echain"]),
+			(input: string) =>
+				input === "ex"
+					? { _tag: CompletionTag.ShowMatches, matches: ["exit ", "expand "] }
+					: { _tag: CompletionTag.ShowMatches, matches: ["echo ", "echain "] },
 			bell,
 			list,
 		);
