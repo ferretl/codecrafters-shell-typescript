@@ -2,20 +2,24 @@ import { pipe } from "fp-ts/function";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import {
+	listDirectoriesInDir,
 	listFilesInDir,
 	listPathExecutables,
+	makeCompleteArgument,
 	makeCompleteCommand,
-	makeCompleteFile,
 	makeCompleter,
 } from "./completionCommand";
 
 const cachedExecutables = listPathExecutables();
 
 export const completeCommand = makeCompleteCommand(cachedExecutables);
-export const completeFile = makeCompleteFile(listFilesInDir);
+export const completeArgument = makeCompleteArgument(
+	listFilesInDir,
+	listDirectoriesInDir,
+);
 export const completer = makeCompleter(
 	completeCommand,
-	completeFile,
+	completeArgument,
 	() => process.stdout.write("\x07"),
 	(matches, line) => () => {
 		const formatted = pipe(

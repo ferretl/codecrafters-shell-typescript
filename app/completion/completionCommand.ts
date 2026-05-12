@@ -37,6 +37,13 @@ const isFile = (filePath: string): boolean =>
 		O.getOrElse(() => false),
 	);
 
+const isDirectory = (filePath: string): boolean =>
+	pipe(
+		O.tryCatch(() => fs.statSync(filePath)),
+		O.map((stats) => stats.isDirectory()),
+		O.getOrElse(() => false),
+	);
+
 const listExecutablesInDir = (dir: string): ReadonlyArray<string> =>
 	pipe(
 		readDirSafe(dir),
@@ -49,6 +56,14 @@ export const listFilesInDir = (
 	pipe(
 		readDirSafe(dir),
 		RA.filter((name) => isFile(path.join(dir, name))),
+	);
+
+export const listDirectoriesInDir = (
+	dir: string = process.cwd(),
+): ReadonlyArray<string> =>
+	pipe(
+		readDirSafe(dir),
+		RA.filter((name) => isDirectory(path.join(dir, name))),
 	);
 
 export const listPathExecutables = (): ReadonlyArray<string> =>
@@ -67,7 +82,6 @@ const completeFromCandidates =
 			RA.filter(S.startsWith(prefix)),
 			RA.uniq(S.Eq),
 			RA.sort(S.Ord),
-			RA.map((name) => `${name} `),
 		);
 		if (RA.isEmpty(matches)) return { _tag: CompletionTag.NoMatch };
 		if (matches.length === 1)
@@ -90,22 +104,31 @@ const completeFromCandidates =
 	};
 
 export const makeCompleteCommand = (executables: ReadonlyArray<string>) =>
-	completeFromCandidates([...builtinNames, ...executables]);
+	completeFromCandidates(
+		[...builtinNames, ...executables].map((name) => `${name} `),
+	);
 
-export const makeCompleteFile =
-	(listFiles: (dir: string) => ReadonlyArray<string>) =>
+export const makeCompleteArgument =
+	(
+		listFiles: (dir: string) => ReadonlyArray<string>,
+		listDirectories: (dir: string) => ReadonlyArray<string>,
+	) =>
 	(input: string): CompletionResult => {
 		const { dirPart, readDir } = splitPath(input);
-		const candidates = pipe(
+		const fileCandidates = pipe(
 			listFiles(readDir),
-			RA.map((name) => `${dirPart}${name}`),
+			RA.map((name) => `${dirPart}${name} `),
 		);
-		return completeFromCandidates(candidates)(input);
+		const dirCandidates = pipe(
+			listDirectories(readDir),
+			RA.map((name) => `${dirPart}${name}/`),
+		);
+		return completeFromCandidates([...fileCandidates, ...dirCandidates])(input);
 	};
 
 export const makeCompleter = (
 	completeCommand: (prefix: string) => CompletionResult,
-	completeFile: (prefix: string) => CompletionResult,
+	completeArgument: (prefix: string) => CompletionResult,
 	bell: IO.IO<void>,
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
 ): ((line: string) => [ReadonlyArray<string>, string]) => {
@@ -116,7 +139,7 @@ export const makeCompleter = (
 		const inArgPosition = lastSpace !== -1;
 		const prefix = inArgPosition ? line.slice(lastSpace + 1) : line;
 		const result = inArgPosition
-			? completeFile(prefix)
+			? completeArgument(prefix)
 			: completeCommand(prefix);
 
 		switch (result._tag) {

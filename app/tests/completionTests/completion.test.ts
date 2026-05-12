@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 import { CompletionTag } from "../../completion/CompletionResult";
 import {
+	makeCompleteArgument,
 	makeCompleteCommand,
-	makeCompleteFile,
 	makeCompleter,
 } from "../../completion/completionCommand";
 
@@ -63,7 +63,7 @@ describe("completeFile", () => {
 	test("completes a file in the current directory", () => {
 		const listFiles = (dir: string) =>
 			dir === "." ? ["completion.ts", "main.ts"] : [];
-		const completeFile = makeCompleteFile(listFiles);
+		const completeFile = makeCompleteArgument(listFiles, () => []);
 
 		expect(completeFile("compl")).toEqual({
 			_tag: CompletionTag.Complete,
@@ -74,7 +74,7 @@ describe("completeFile", () => {
 	test("completes a file in a subdirectory", () => {
 		const listFiles = (dir: string) =>
 			dir === "src" ? ["completion", "main.ts"] : [];
-		const completeFile = makeCompleteFile(listFiles);
+		const completeFile = makeCompleteArgument(listFiles, () => []);
 
 		expect(completeFile("src/comp")).toEqual({
 			_tag: CompletionTag.Complete,
@@ -85,8 +85,7 @@ describe("completeFile", () => {
 	test("completes a file in an absolute path", () => {
 		const listFiles = (dir: string) =>
 			dir === "/usr/bin" ? ["ls", "lsappinfo"] : [];
-		const completeFile = makeCompleteFile(listFiles);
-
+		const completeFile = makeCompleteArgument(listFiles, () => []);
 		expect(completeFile("/usr/bin/ls")).toEqual({
 			_tag: CompletionTag.ShowMatches,
 			matches: ["/usr/bin/ls ", "/usr/bin/lsappinfo "],
@@ -94,13 +93,16 @@ describe("completeFile", () => {
 	});
 
 	test("returns NoMatch when the directory is empty", () => {
-		const completeFile = makeCompleteFile(() => []);
+		const completeFile = makeCompleteArgument(
+			() => [],
+			() => [],
+		);
 		expect(completeFile("anything")).toEqual({ _tag: CompletionTag.NoMatch });
 	});
 
 	test("treats a bare slash as listing root", () => {
 		const listFiles = (dir: string) => (dir === "/" ? ["bin", "etc"] : []);
-		const completeFile = makeCompleteFile(listFiles);
+		const completeFile = makeCompleteArgument(listFiles, () => []);
 
 		expect(completeFile("/")).toEqual({
 			_tag: CompletionTag.ShowMatches,
@@ -133,6 +135,39 @@ describe("completer arg position", () => {
 		);
 
 		expect(completer("ec")).toEqual([["echo "], "ec"]);
+	});
+
+	test("completes a directory with a trailing slash", () => {
+		const listFiles = () => [];
+		const listDirectories = (dir: string) => (dir === "." ? ["src"] : []);
+		const completeArgument = makeCompleteArgument(listFiles, listDirectories);
+
+		expect(completeArgument("s")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "src/",
+		});
+	});
+
+	test("completes a file with a trailing space", () => {
+		const listFiles = (dir: string) => (dir === "." ? ["main.ts"] : []);
+		const listDirectories = () => [];
+		const completeArgument = makeCompleteArgument(listFiles, listDirectories);
+
+		expect(completeArgument("m")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "main.ts ",
+		});
+	});
+
+	test("shows both files and directories when prefix matches both", () => {
+		const listFiles = (dir: string) => (dir === "." ? ["completion.ts"] : []);
+		const listDirectories = (dir: string) => (dir === "." ? ["compiler"] : []);
+		const completeArgument = makeCompleteArgument(listFiles, listDirectories);
+
+		expect(completeArgument("comp")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["compiler/", "completion.ts "],
+		});
 	});
 });
 
