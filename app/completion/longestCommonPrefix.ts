@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import * as S from "fp-ts/String";
+import * as S from "fp-ts/string";
 
 const commonPrefixOfTwo = (a: string, b: string): string => {
 	const go = (index: number): number =>
