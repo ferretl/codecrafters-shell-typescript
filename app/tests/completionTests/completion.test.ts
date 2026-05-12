@@ -60,32 +60,52 @@ describe("completeCommand", () => {
 });
 
 describe("completeFile", () => {
-	test("returns Complete for a unique file prefix", () => {
-		const completeFile = makeCompleteFile(["raspberry-90.txt"]);
-		expect(completeFile("raspberr")).toEqual({
+	test("completes a file in the current directory", () => {
+		const listFiles = (dir: string) =>
+			dir === "." ? ["completion.ts", "main.ts"] : [];
+		const completeFile = makeCompleteFile(listFiles);
+
+		expect(completeFile("compl")).toEqual({
 			_tag: CompletionTag.Complete,
-			value: "raspberry-90.txt ",
+			value: "completion.ts ",
 		});
 	});
 
-	test("returns NoMatch when no file starts with prefix", () => {
-		const completeFile = makeCompleteFile(["main.ts"]);
-		expect(completeFile("xyz")).toEqual({ _tag: CompletionTag.NoMatch });
-	});
-});
+	test("completes a file in a subdirectory", () => {
+		const listFiles = (dir: string) =>
+			dir === "src" ? ["completion", "main.ts"] : [];
+		const completeFile = makeCompleteFile(listFiles);
 
-describe("completeFile", () => {
-	test("returns Complete for a unique file prefix", () => {
-		const completeFile = makeCompleteFile(["raspberry-90.txt"]);
-		expect(completeFile("raspberr")).toEqual({
+		expect(completeFile("src/comp")).toEqual({
 			_tag: CompletionTag.Complete,
-			value: "raspberry-90.txt ",
+			value: "src/completion ",
 		});
 	});
 
-	test("returns NoMatch when no file starts with prefix", () => {
-		const completeFile = makeCompleteFile(["main.ts"]);
-		expect(completeFile("xyz")).toEqual({ _tag: CompletionTag.NoMatch });
+	test("completes a file in an absolute path", () => {
+		const listFiles = (dir: string) =>
+			dir === "/usr/bin" ? ["ls", "lsappinfo"] : [];
+		const completeFile = makeCompleteFile(listFiles);
+
+		expect(completeFile("/usr/bin/ls")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["/usr/bin/ls ", "/usr/bin/lsappinfo "],
+		});
+	});
+
+	test("returns NoMatch when the directory is empty", () => {
+		const completeFile = makeCompleteFile(() => []);
+		expect(completeFile("anything")).toEqual({ _tag: CompletionTag.NoMatch });
+	});
+
+	test("treats a bare slash as listing root", () => {
+		const listFiles = (dir: string) => (dir === "/" ? ["bin", "etc"] : []);
+		const completeFile = makeCompleteFile(listFiles);
+
+		expect(completeFile("/")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["/bin ", "/etc "],
+		});
 	});
 });
 

@@ -12,7 +12,7 @@ import {
 const cachedExecutables = listPathExecutables();
 
 export const completeCommand = makeCompleteCommand(cachedExecutables);
-export const completeFile = makeCompleteFile(listFilesInDir());
+export const completeFile = makeCompleteFile(listFilesInDir);
 export const completer = makeCompleter(
 	completeCommand,
 	completeFile,

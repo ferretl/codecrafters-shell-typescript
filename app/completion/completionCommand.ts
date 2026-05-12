@@ -16,6 +16,14 @@ const readDirSafe = (dir: string): ReadonlyArray<string> =>
 		O.getOrElse((): ReadonlyArray<string> => []),
 	);
 
+const splitPath = (input: string): { dirPart: string; readDir: string } => {
+	const lastSlash = input.lastIndexOf("/");
+	if (lastSlash === -1) return { dirPart: "", readDir: "." };
+	const dirPart = input.slice(0, lastSlash + 1); // keeps trailing slash
+	const readDir = dirPart === "/" ? "/" : dirPart.slice(0, -1);
+	return { dirPart, readDir };
+};
+
 const isExecutable = (filePath: string): boolean =>
 	pipe(
 		O.tryCatch(() => fs.accessSync(filePath, fs.constants.X_OK)),
@@ -84,8 +92,16 @@ const completeFromCandidates =
 export const makeCompleteCommand = (executables: ReadonlyArray<string>) =>
 	completeFromCandidates([...builtinNames, ...executables]);
 
-export const makeCompleteFile = (files: ReadonlyArray<string>) =>
-	completeFromCandidates(files);
+export const makeCompleteFile =
+	(listFiles: (dir: string) => ReadonlyArray<string>) =>
+	(input: string): CompletionResult => {
+		const { dirPart, readDir } = splitPath(input);
+		const candidates = pipe(
+			listFiles(readDir),
+			RA.map((name) => `${dirPart}${name}`),
+		);
+		return completeFromCandidates(candidates)(input);
+	};
 
 export const makeCompleter = (
 	completeCommand: (prefix: string) => CompletionResult,
