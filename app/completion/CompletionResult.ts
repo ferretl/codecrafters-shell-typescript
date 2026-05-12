@@ -1,8 +1,8 @@
 export enum CompletionTag {
-	NoMatch,
-	Complete,
-	PartialComplete,
-	ShowMatches,
+	NoMatch = "NoMatch",
+	Complete = "Complete",
+	PartialComplete = "PartialComplete",
+	ShowMatches = "ShowMatches",
 }
 
 export type CompletionResult =
