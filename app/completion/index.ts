@@ -5,18 +5,17 @@ import {
 	listFilesInDir,
 	listPathExecutables,
 	makeCompleteCommand,
+	makeCompleteFile,
 	makeCompleter,
 } from "./completionCommand";
 
 const cachedExecutables = listPathExecutables();
-const cachedFiles = listFilesInDir();
 
-export const completeCommand = makeCompleteCommand(
-	cachedExecutables,
-	cachedFiles,
-);
+export const completeCommand = makeCompleteCommand(cachedExecutables);
+export const completeFile = makeCompleteFile(listFilesInDir());
 export const completer = makeCompleter(
 	completeCommand,
+	completeFile,
 	() => process.stdout.write("\x07"),
 	(matches, line) => () => {
 		const formatted = pipe(

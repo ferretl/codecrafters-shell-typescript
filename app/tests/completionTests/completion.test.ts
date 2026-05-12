@@ -2,11 +2,12 @@ import { describe, expect, mock, test } from "bun:test";
 import { CompletionTag } from "../../completion/CompletionResult";
 import {
 	makeCompleteCommand,
+	makeCompleteFile,
 	makeCompleter,
 } from "../../completion/completionCommand";
 
 describe("completeCommand", () => {
-	const completeCommand = makeCompleteCommand([], []);
+	const completeCommand = makeCompleteCommand([]);
 
 	test("returns Complete for a unique builtin prefix", () => {
 		expect(completeCommand("ec")).toEqual({
@@ -23,7 +24,7 @@ describe("completeCommand", () => {
 	});
 
 	test("returns PartialComplete when LCP extends past input", () => {
-		const completer = makeCompleteCommand(["custom_a", "custom_b"], []);
+		const completer = makeCompleteCommand(["custom_a", "custom_b"]);
 		expect(completer("cu")).toEqual({
 			_tag: CompletionTag.PartialComplete,
 			value: "custom_",
@@ -42,7 +43,7 @@ describe("completeCommand", () => {
 	});
 
 	test("includes PATH executables in matches alongside builtins", () => {
-		const completer = makeCompleteCommand(["custom_executable"], []);
+		const completer = makeCompleteCommand(["custom_executable"]);
 		expect(completer("c")).toEqual({
 			_tag: CompletionTag.ShowMatches,
 			matches: ["cd ", "custom_executable "],
@@ -50,43 +51,68 @@ describe("completeCommand", () => {
 	});
 
 	test("deduplicates when builtin and PATH share a name", () => {
-		const completer = makeCompleteCommand(["echo"], []);
+		const completer = makeCompleteCommand(["echo"]);
 		expect(completer("echo")).toEqual({
 			_tag: CompletionTag.Complete,
 			value: "echo ",
 		});
 	});
+});
 
-	test("deduplicates when PATH executable and file share a name", () => {
-		const completer = makeCompleteCommand(["custom"], ["custom"]);
-		expect(completer("custom")).toEqual({
+describe("completeFile", () => {
+	test("returns Complete for a unique file prefix", () => {
+		const completeFile = makeCompleteFile(["raspberry-90.txt"]);
+		expect(completeFile("raspberr")).toEqual({
 			_tag: CompletionTag.Complete,
-			value: "custom ",
+			value: "raspberry-90.txt ",
 		});
 	});
 
-	test("combines builtins, PATH executables, and files", () => {
-		const completer = makeCompleteCommand(["cat"], ["config.json"]);
-		expect(completer("c")).toEqual({
-			_tag: CompletionTag.ShowMatches,
-			matches: ["cat ", "cd ", "config.json "],
+	test("returns NoMatch when no file starts with prefix", () => {
+		const completeFile = makeCompleteFile(["main.ts"]);
+		expect(completeFile("xyz")).toEqual({ _tag: CompletionTag.NoMatch });
+	});
+});
+
+describe("completeFile", () => {
+	test("returns Complete for a unique file prefix", () => {
+		const completeFile = makeCompleteFile(["raspberry-90.txt"]);
+		expect(completeFile("raspberr")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "raspberry-90.txt ",
 		});
 	});
 
-	test("includes files in matches alongside builtins and PATH", () => {
-		const completer = makeCompleteCommand([], ["main.ts", "package.json"]);
-		expect(completer("m")).toEqual({
-			_tag: CompletionTag.Complete,
-			value: "main.ts ",
-		});
+	test("returns NoMatch when no file starts with prefix", () => {
+		const completeFile = makeCompleteFile(["main.ts"]);
+		expect(completeFile("xyz")).toEqual({ _tag: CompletionTag.NoMatch });
+	});
+});
+
+describe("completer arg position", () => {
+	test("completes a file when after a space", () => {
+		const completer = makeCompleter(
+			() => ({ _tag: CompletionTag.NoMatch }),
+			() => ({ _tag: CompletionTag.Complete, value: "raspberry-90.txt " }),
+			mock(),
+			mock(() => () => {}),
+		);
+
+		expect(completer("wc raspberr")).toEqual([
+			["raspberry-90.txt "],
+			"raspberr",
+		]);
 	});
 
-	test("deduplicates when a builtin and a file share a name", () => {
-		const completer = makeCompleteCommand([], ["echo"]);
-		expect(completer("echo")).toEqual({
-			_tag: CompletionTag.Complete,
-			value: "echo ",
-		});
+	test("uses command completion when no space in the line", () => {
+		const completer = makeCompleter(
+			() => ({ _tag: CompletionTag.Complete, value: "echo " }),
+			() => ({ _tag: CompletionTag.NoMatch }),
+			mock(),
+			mock(() => () => {}),
+		);
+
+		expect(completer("ec")).toEqual([["echo "], "ec"]);
 	});
 });
 
@@ -95,6 +121,7 @@ describe("completer", () => {
 		const bell = mock();
 		const list = mock(() => () => {});
 		const completer = makeCompleter(
+			() => ({ _tag: CompletionTag.NoMatch }),
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
@@ -110,6 +137,7 @@ describe("completer", () => {
 		const list = mock(() => () => {});
 		const completer = makeCompleter(
 			() => ({ _tag: CompletionTag.Complete, value: "echo " }),
+			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
 		);
@@ -124,6 +152,7 @@ describe("completer", () => {
 		const list = mock(() => () => {});
 		const completer = makeCompleter(
 			() => ({ _tag: CompletionTag.PartialComplete, value: "custom_" }),
+			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
 		);
@@ -141,6 +170,7 @@ describe("completer", () => {
 				_tag: CompletionTag.ShowMatches,
 				matches: ["exit ", "expand "],
 			}),
+			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
 		);
@@ -161,6 +191,7 @@ describe("completer", () => {
 				_tag: CompletionTag.ShowMatches,
 				matches: ["exit ", "expand "],
 			}),
+			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
 		);
@@ -181,6 +212,7 @@ describe("completer", () => {
 				input === "ex"
 					? { _tag: CompletionTag.ShowMatches, matches: ["exit ", "expand "] }
 					: { _tag: CompletionTag.ShowMatches, matches: ["echo ", "echain "] },
+			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
 		);

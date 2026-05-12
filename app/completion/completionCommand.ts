@@ -51,74 +51,78 @@ export const listPathExecutables = (): ReadonlyArray<string> =>
 		RA.chain(listExecutablesInDir),
 	);
 
-export const makeCompleteCommand =
-	(executables: ReadonlyArray<string>, files: ReadonlyArray<string>) =>
-	(input: string): CompletionResult => {
+const completeFromCandidates =
+	(candidates: ReadonlyArray<string>) =>
+	(prefix: string): CompletionResult => {
 		const matches = pipe(
-			[...builtinNames, ...executables, ...files],
-			RA.filter(S.startsWith(input)),
+			candidates,
+			RA.filter(S.startsWith(prefix)),
 			RA.uniq(S.Eq),
 			RA.sort(S.Ord),
 			RA.map((name) => `${name} `),
 		);
-		if (RA.isEmpty(matches)) {
-			return {
-				_tag: CompletionTag.NoMatch,
-			};
-		}
-
-		if (matches.length === 1) {
-			return {
-				_tag: CompletionTag.Complete,
-				value: `${matches[0]}`,
-			};
-		}
+		if (RA.isEmpty(matches)) return { _tag: CompletionTag.NoMatch };
+		if (matches.length === 1)
+			return { _tag: CompletionTag.Complete, value: matches[0] };
 
 		return pipe(
 			matches,
 			longestCommonPrefix,
 			O.match(
 				() => ({ _tag: CompletionTag.ShowMatches, matches }),
-				(prefix: string): CompletionResult =>
-					prefix.length > input.length
-						? { _tag: CompletionTag.PartialComplete, value: prefix }
+				(cp): CompletionResult =>
+					cp.length > prefix.length
+						? { _tag: CompletionTag.PartialComplete, value: cp }
 						: { _tag: CompletionTag.ShowMatches, matches },
 			),
 		);
 	};
+
+export const makeCompleteCommand = (executables: ReadonlyArray<string>) =>
+	completeFromCandidates([...builtinNames, ...executables]);
+
+export const makeCompleteFile = (files: ReadonlyArray<string>) =>
+	completeFromCandidates(files);
+
 export const makeCompleter = (
 	completeCommand: (prefix: string) => CompletionResult,
+	completeFile: (prefix: string) => CompletionResult,
 	bell: IO.IO<void>,
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
 ): ((line: string) => [ReadonlyArray<string>, string]) => {
-	const lastAmbiguousLine = newIORef("")();
+	const lastAmbiguousPrefix = newIORef("")();
 
 	return (line) => {
-		const completionResult = completeCommand(line);
+		const lastSpace = line.lastIndexOf(" ");
+		const inArgPosition = lastSpace !== -1;
+		const prefix = inArgPosition ? line.slice(lastSpace + 1) : line;
+		const result = inArgPosition
+			? completeFile(prefix)
+			: completeCommand(prefix);
 
-		switch (completionResult._tag) {
+		switch (result._tag) {
 			case CompletionTag.NoMatch:
 				bell();
-				lastAmbiguousLine.write("")();
-				return [[], line];
+				lastAmbiguousPrefix.write("")();
+				return [[], prefix];
 
 			case CompletionTag.Complete:
-				lastAmbiguousLine.write("")();
-				return [[completionResult.value], line];
+				lastAmbiguousPrefix.write("")();
+				return [[result.value], prefix];
 
 			case CompletionTag.PartialComplete:
-				lastAmbiguousLine.write("")();
-				return [[completionResult.value], line]; // readline extends, no bell
+				lastAmbiguousPrefix.write("")();
+				return [[result.value], prefix];
 
 			case CompletionTag.ShowMatches:
-				if (lastAmbiguousLine.read() !== line) {
-					bell(); // first tap
-					lastAmbiguousLine.write(line)();
-					return [[], line];
+				if (lastAmbiguousPrefix.read() !== prefix) {
+					bell();
+					lastAmbiguousPrefix.write(prefix)();
+					return [[], prefix];
 				}
-				list(completionResult.matches, line)(); // second tap
-				lastAmbiguousLine.write("")();
-				return [[], line];
+				list(result.matches, line)();
+				lastAmbiguousPrefix.write("")();
+				return [[], prefix];
 		}
 	};
 };
