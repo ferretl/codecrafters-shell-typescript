@@ -9,10 +9,11 @@ import {
 } from "./completionCommand";
 
 const cachedExecutables = listPathExecutables();
+const cachedFiles = listFilesInDir();
 
 export const completeCommand = makeCompleteCommand(
 	cachedExecutables,
-	listFilesInDir(),
+	cachedFiles,
 );
 export const completer = makeCompleter(
 	completeCommand,

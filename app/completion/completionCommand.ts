@@ -24,8 +24,9 @@ const isExecutable = (filePath: string): boolean =>
 
 const isFile = (filePath: string): boolean =>
 	pipe(
-		O.tryCatch(() => fs.accessSync(filePath, fs.constants.F_OK)),
-		O.isSome,
+		O.tryCatch(() => fs.statSync(filePath)),
+		O.map((stats) => stats.isFile()),
+		O.getOrElse(() => false),
 	);
 
 const listExecutablesInDir = (dir: string): ReadonlyArray<string> =>

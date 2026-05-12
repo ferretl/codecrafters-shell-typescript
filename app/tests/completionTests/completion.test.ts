@@ -57,6 +57,22 @@ describe("completeCommand", () => {
 		});
 	});
 
+	test("deduplicates when PATH executable and file share a name", () => {
+		const completer = makeCompleteCommand(["custom"], ["custom"]);
+		expect(completer("custom")).toEqual({
+			_tag: CompletionTag.Complete,
+			value: "custom ",
+		});
+	});
+
+	test("combines builtins, PATH executables, and files", () => {
+		const completer = makeCompleteCommand(["cat"], ["config.json"]);
+		expect(completer("c")).toEqual({
+			_tag: CompletionTag.ShowMatches,
+			matches: ["cat ", "cd ", "config.json "],
+		});
+	});
+
 	test("includes files in matches alongside builtins and PATH", () => {
 		const completer = makeCompleteCommand([], ["main.ts", "package.json"]);
 		expect(completer("m")).toEqual({
