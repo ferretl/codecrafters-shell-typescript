@@ -70,9 +70,12 @@ const completeFromCandidates =
 			longestCommonPrefix,
 			O.match(
 				() => ({ _tag: CompletionTag.ShowMatches, matches }),
-				(cp): CompletionResult =>
-					cp.length > prefix.length
-						? { _tag: CompletionTag.PartialComplete, value: cp }
+				(longestcommonPrefix): CompletionResult =>
+					longestcommonPrefix.length > prefix.length
+						? {
+								_tag: CompletionTag.PartialComplete,
+								value: longestcommonPrefix,
+							}
 						: { _tag: CompletionTag.ShowMatches, matches },
 			),
 		);
