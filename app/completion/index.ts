@@ -76,7 +76,6 @@ export const makeCompleter = (
 		return [[], line];
 	};
 };
-
 const cachedExecutables = listPathExecutables();
 
 export const completeCommand = makeCompleteCommand(cachedExecutables);
@@ -87,7 +86,7 @@ export const completer = makeCompleter(
 		const formatted = pipe(
 			matches,
 			A.map(S.trimRight),
-			A.intercalate(S.Monoid)("	"),
+			A.intercalate(S.Monoid)("\t"),
 		);
 		process.stdout.write(`\n${formatted}\n$ ${line}`);
 	},
