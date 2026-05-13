@@ -2,13 +2,15 @@ import { pipe } from "fp-ts/function";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import {
-	listDirectoriesInDir,
-	listFilesInDir,
-	listPathExecutables,
 	makeCompleteArgument,
 	makeCompleteCommand,
 	makeCompleter,
 } from "./completionCommand";
+import {
+	listDirectoriesInDir,
+	listFilesInDir,
+	listPathExecutables,
+} from "./listings";
 
 const cachedExecutables = listPathExecutables();
 

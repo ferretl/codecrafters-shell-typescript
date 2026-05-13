@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { listFilesInDir } from "../../completion/completionCommand";
+import { listFilesInDir } from "../../completion/listings";
 
 describe("listFilesInDir", () => {
 	const tmpDir = path.join(
