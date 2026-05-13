@@ -9,10 +9,13 @@ import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
 import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
-import parseLine, { type Redirect } from "./parser";
+import parseLine, { type ParsedContents, type Redirect } from "./parser";
 import {
 	type CommandArgs,
+	type CommandResult,
+	type ExitResult,
 	type IOEvalResult,
+	type OutputResult,
 	output,
 	ResultTag,
 } from "./types";
@@ -47,6 +50,32 @@ export const runExecutable =
 				);
 	};
 
+const writeToConsole =
+	(text: O.Option<string>, fallback: (s: string) => void): IO.IO<void> =>
+	() =>
+		pipe(
+			text,
+			O.match(
+				() => undefined,
+				(s) => fallback(s),
+			),
+		);
+
+const writeToFile =
+	({ path, mode }: Redirect, text: O.Option<string>): IO.IO<void> =>
+	() => {
+		const content = pipe(
+			text,
+			O.match(
+				() => "",
+				(s) => `${s}\n`,
+			),
+		);
+		fs.writeFileSync(path, content, {
+			flag: mode === "append" ? "a" : "w",
+		});
+	};
+
 const handleStream = (
 	redirect: O.Option<Redirect>,
 	text: O.Option<string>,
@@ -55,40 +84,13 @@ const handleStream = (
 	pipe(
 		redirect,
 		O.match(
-			(): IO.IO<void> =>
-				pipe(
-					text,
-					O.match(
-						() => () => {},
-						(s) => () => fallback(s),
-					),
-				),
-			({ path, mode }) =>
-				() => {
-					const content = pipe(
-						text,
-						O.match(
-							() => "",
-							(s) => `${s}\n`,
-						),
-					);
-					fs.writeFileSync(path, content, {
-						flag: mode === "append" ? "a" : "w",
-					});
-				},
+			() => writeToConsole(text, fallback),
+			(r) => writeToFile(r, text),
 		),
 	);
 
-rl.on("line", (line) => {
-	const parsed = parseLine(line);
-	if (parsed._tag === "Left") {
-		console.error(parsed.left.message);
-		return rl.prompt();
-	}
-	const { name, args, stdout, stderr } = parsed.right;
-	if (S.isEmpty(name)) return rl.prompt();
-
-	const dispatch: IOEvalResult = pipe(
+const dispatchCommand = (name: string, args: CommandArgs): IOEvalResult =>
+	pipe(
 		findBuiltin(name),
 		O.match(
 			() =>
@@ -103,29 +105,54 @@ rl.on("line", (line) => {
 		),
 	);
 
-	const program: IO.IO<void> = pipe(
-		dispatch,
-		IOE.matchE(
-			(err) => () => console.error(err.message),
-			(result) => {
-				switch (result._tag) {
-					case ResultTag.Output:
-						return pipe(
-							handleStream(stdout, result.text, console.log),
-							IO.apSecond(
-								handleStream(stderr, result.errorText, console.error),
-							),
-						);
-					case ResultTag.Exit:
-						return () => {
-							rl.close();
-							process.exit(result.code);
-						};
-				}
-			},
-		),
+const exitProgram =
+	(result: ExitResult): IO.IO<void> =>
+	() => {
+		rl.close();
+		process.exit(result.code);
+	};
+
+const handleOutput = (
+	stdout: O.Option<Redirect>,
+	result: OutputResult,
+	stderr: O.Option<Redirect>,
+): IO.IO<void> =>
+	pipe(
+		handleStream(stdout, result.text, console.log),
+		IO.apSecond(handleStream(stderr, result.errorText, console.error)),
 	);
 
-	program();
+const handleCommandResult =
+	(stdout: O.Option<Redirect>, stderr: O.Option<Redirect>) =>
+	(result: CommandResult): IO.IO<void> =>
+		result._tag === ResultTag.Output
+			? handleOutput(stdout, result, stderr)
+			: exitProgram(result);
+
+const noop: IO.IO<void> = () => {};
+
+const logError =
+	(err: { message: string }): IO.IO<void> =>
+	() =>
+		console.error(err.message);
+
+const evalParsed = ({
+	name,
+	args,
+	stdout,
+	stderr,
+}: ParsedContents): IO.IO<void> =>
+	S.isEmpty(name)
+		? noop
+		: pipe(
+				dispatchCommand(name, args),
+				IOE.matchE(logError, handleCommandResult(stdout, stderr)),
+			);
+
+const runLine = (line: string): IO.IO<void> =>
+	pipe(parseLine(line), E.match(logError, evalParsed));
+
+rl.on("line", (line) => {
+	runLine(line)();
 	rl.prompt();
 });

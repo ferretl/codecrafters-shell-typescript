@@ -5,13 +5,13 @@ export enum ResultTag {
 	Exit = "Exit",
 }
 
-type OutputResult = {
+export type OutputResult = {
 	_tag: ResultTag.Output;
 	text: O.Option<string>;
 	errorText: O.Option<string>;
 };
 
-type ExitResult = {
+export type ExitResult = {
 	_tag: ResultTag.Exit;
 	code: number;
 };

@@ -16,6 +16,8 @@ type ParseState = {
 	args: ReadonlyArray<string>;
 };
 
+type StepFn = (state: ParseState, char: string) => ParseState;
+
 const initialState: ParseState = {
 	quoteMode: QuoteMode.None,
 	escaped: false,
@@ -23,58 +25,74 @@ const initialState: ParseState = {
 	args: [],
 };
 
-const stepChar = (state: ParseState, char: string): ParseState => {
-	const append = (character: string): ParseState => ({
-		...state,
-		escaped: false,
-		current: state.current + character,
-	});
+const appendToState = (state: ParseState, character: string): ParseState => ({
+	...state,
+	escaped: false,
+	current: state.current + character,
+});
 
-	const flush = (): ParseState => ({
-		...state,
-		current: "",
-		args: RA.append(state.current)(state.args),
-	});
+const flushState = (state: ParseState): ParseState => ({
+	...state,
+	current: "",
+	args: RA.append(state.current)(state.args),
+});
 
-	const stepQuoted = (closeChar: string) => {
-		return char === closeChar
-			? { ...state, quoteMode: QuoteMode.None }
-			: append(char);
-	};
+const stepQuoted = (state: ParseState, char: string, closeChar: string) =>
+	char === closeChar
+		? { ...state, quoteMode: QuoteMode.None }
+		: appendToState(state, char);
 
-	if (state.escaped && state.quoteMode === QuoteMode.None)
-		return { ...state, escaped: false, current: state.current + char };
+const setQuoteMode =
+	(mode: QuoteMode): StepFn =>
+	(state) => ({ ...state, escaped: false, quoteMode: mode });
 
-	if (state.escaped && state.quoteMode === QuoteMode.Double) {
-		const specialChars = ['"', "\\"];
-		return {
-			...state,
-			escaped: false,
-			current:
-				state.current + (specialChars.includes(char) ? char : `\\${char}`),
-		};
-	}
+const flushIfPending: StepFn = (state) =>
+	state.current ? flushState(state) : state;
 
-	if (state.quoteMode === QuoteMode.Single) return stepQuoted("'");
-	if (state.quoteMode === QuoteMode.Double)
-		return char === "\\" ? { ...state, escaped: true } : stepQuoted('"');
+const expandTilde: StepFn = (state, char) =>
+	appendToState(state, state.current ? char : (process.env.HOME ?? "~"));
 
-	switch (char) {
-		case "'":
-			return { ...state, escaped: false, quoteMode: QuoteMode.Single };
-		case '"':
-			return { ...state, escaped: false, quoteMode: QuoteMode.Double };
-		case " ":
-		case "\t":
-			return state.current ? flush() : state;
-		case "\\":
-			return { ...state, escaped: true };
-		case "~":
-			return append(state.current ? char : (process.env.HOME ?? "~"));
-		default:
-			return append(char);
-	}
+const beginEscape: StepFn = (state) => ({ ...state, escaped: true });
+
+const unquotedHandlers: Record<string, StepFn> = {
+	"'": setQuoteMode(QuoteMode.Single),
+	'"': setQuoteMode(QuoteMode.Double),
+	" ": flushIfPending,
+	"\t": flushIfPending,
+	"\\": beginEscape,
+	"~": expandTilde,
 };
+
+const stepUnquoted: StepFn = (state, char) =>
+	(unquotedHandlers[char] ?? appendToState)(state, char);
+
+const stepInsideSingle: StepFn = (state, char) => stepQuoted(state, char, "'");
+
+const stepInsideDouble: StepFn = (state, char) =>
+	char === "\\" ? beginEscape(state, char) : stepQuoted(state, char, '"');
+
+const DOUBLE_SPECIALS = new Set(['"', "\\"]);
+
+const stepEscapedDouble: StepFn = (state, char) =>
+	appendToState(state, DOUBLE_SPECIALS.has(char) ? char : `\\${char}`);
+
+const modeHandlers: Record<QuoteMode, StepFn> = {
+	[QuoteMode.None]: stepUnquoted,
+	[QuoteMode.Single]: stepInsideSingle,
+	[QuoteMode.Double]: stepInsideDouble,
+};
+
+const escapedHandlers: Record<QuoteMode, StepFn> = {
+	[QuoteMode.None]: appendToState,
+	[QuoteMode.Single]: stepInsideSingle,
+	[QuoteMode.Double]: stepEscapedDouble,
+};
+
+const stepChar: StepFn = (state, char) =>
+	(state.escaped ? escapedHandlers : modeHandlers)[state.quoteMode](
+		state,
+		char,
+	);
 
 export const tokenize = (input: string): CommandArgs => {
 	const { current, args } = pipe([...input], RA.reduce(initialState, stepChar));

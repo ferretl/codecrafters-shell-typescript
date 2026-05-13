@@ -9,7 +9,7 @@ export type { Redirect } from "./redirects";
 
 export type ParseError = { message: string };
 
-type ParsedContents = {
+export type ParsedContents = {
 	name: string;
 	args: CommandArgs;
 	stdout: O.Option<Redirect>;
