@@ -4,16 +4,19 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import { type Command, output } from "../types";
+
+const changeDirectory = (targetDir: string) =>
+	IOE.tryCatch(
+		() => {
+			process.chdir(targetDir);
+			return output(O.none);
+		},
+		() => ({ message: `cd: ${targetDir}: No such file or directory` }),
+	);
+
 export const cd: Command = (args) =>
 	pipe(
 		RA.head(args),
 		O.getOrElse(() => homedir()),
-		(targetDir) =>
-			IOE.tryCatch(
-				() => {
-					process.chdir(targetDir);
-					return output(O.none);
-				},
-				() => ({ message: `cd: ${targetDir}: No such file or directory` }),
-			),
+		(targetDir) => changeDirectory(targetDir),
 	);

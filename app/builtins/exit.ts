@@ -4,7 +4,7 @@ import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import { type Command, ResultTag } from "../types";
 
-const parseExitCode = (errorCode: string | undefined): number => {
+const parseExitCode = (errorCode: string): number => {
 	const parsed = Number(errorCode ?? 0);
 	return Number.isFinite(parsed) ? parsed : 0;
 };

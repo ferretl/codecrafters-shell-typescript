@@ -10,7 +10,7 @@ export const builtinNames = ["cd", "echo", "exit", "pwd", "type"] as const;
 export type BuiltinName = (typeof builtinNames)[number];
 
 export const isBuiltinName = (name: string): name is BuiltinName =>
-	(builtinNames as readonly string[]).includes(name);
+	(builtinNames as ReadonlyArray<string>).includes(name);
 
 const isExecutable = (filePath: string): boolean =>
 	pipe(
