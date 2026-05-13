@@ -19,7 +19,7 @@ type HandlerDependencies = {
 type MatchHandlers = {
 	[T in CompletionTag]: (
 		result: Extract<CompletionResult, { _tag: T }>,
-		dependecies: HandlerDependencies,
+		dependencies: HandlerDependencies,
 	) => IO.IO<CompletionTuple>;
 };
 
@@ -33,40 +33,40 @@ type CompleterContext = {
 
 const clearAndReturn = (
 	value: ReadonlyArray<string>,
-	dependecies: HandlerDependencies,
+	dependencies: HandlerDependencies,
 ): IO.IO<CompletionTuple> =>
 	pipe(
-		dependecies.lastAmbiguousPrefix.write(""),
-		IO.map((): CompletionTuple => [value, dependecies.prefix]),
+		dependencies.lastAmbiguousPrefix.write(""),
+		IO.map((): CompletionTuple => [value, dependencies.prefix]),
 	);
 
-const noMatch = (dependecies: HandlerDependencies): IO.IO<CompletionTuple> =>
+const noMatch = (dependencies: HandlerDependencies): IO.IO<CompletionTuple> =>
 	pipe(
-		dependecies.bell,
-		IO.chain(() => clearAndReturn([], dependecies)),
+		dependencies.bell,
+		IO.chain(() => clearAndReturn([], dependencies)),
 	);
 
 const completed = (
 	value: string,
-	dependecies: HandlerDependencies,
-): IO.IO<CompletionTuple> => clearAndReturn([value], dependecies);
+	dependencies: HandlerDependencies,
+): IO.IO<CompletionTuple> => clearAndReturn([value], dependencies);
 
 const ringForNewAmbiguity = (
-	dependecies: HandlerDependencies,
+	dependencies: HandlerDependencies,
 ): IO.IO<CompletionTuple> =>
 	pipe(
-		dependecies.bell,
-		IO.chain(() => dependecies.lastAmbiguousPrefix.write(dependecies.prefix)),
-		IO.map((): CompletionTuple => [[], dependecies.prefix]),
+		dependencies.bell,
+		IO.chain(() => dependencies.lastAmbiguousPrefix.write(dependencies.prefix)),
+		IO.map((): CompletionTuple => [[], dependencies.prefix]),
 	);
 
 const listAndClear = (
 	matches: ReadonlyArray<string>,
-	dependecies: HandlerDependencies,
+	dependencies: HandlerDependencies,
 ): IO.IO<CompletionTuple> =>
 	pipe(
-		dependecies.list(matches, dependecies.line),
-		IO.chain(() => clearAndReturn([], dependecies)),
+		dependencies.list(matches, dependencies.line),
+		IO.chain(() => clearAndReturn([], dependencies)),
 	);
 
 const showMatches = (
