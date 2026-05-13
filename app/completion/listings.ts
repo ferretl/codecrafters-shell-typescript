@@ -3,6 +3,7 @@ import path from "node:path";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
+import * as S from "fp-ts/string";
 
 const readDirSafe = (dir: string): ReadonlyArray<string> =>
 	pipe(
@@ -52,13 +53,11 @@ export const listDirectoriesInDir = (
 		RA.filter((name) => isDirectory(path.join(dir, name))),
 	);
 
-import * as Eq from "fp-ts/Eq";
-
 export const listPathExecutables = (): ReadonlyArray<string> =>
 	pipe(
 		O.fromNullable(process.env.PATH),
 		O.map((PATH) => PATH.split(path.delimiter)),
 		O.getOrElse((): ReadonlyArray<string> => []),
 		RA.chain(listExecutablesInDir),
-		RA.uniq(Eq.eqString),
+		RA.uniq(S.Eq),
 	);
