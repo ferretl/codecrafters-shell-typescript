@@ -5,7 +5,11 @@ import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import { builtinNames } from "../builtins";
-import { type CompletionResult, CompletionTag } from "./CompletionResult";
+import {
+	type CompletionResult,
+	CompletionTag,
+	type CompletionThunk,
+} from "./CompletionResult";
 import { longestCommonPrefix } from "./longestCommonPrefix";
 
 const splitPath = (input: string): { dirPart: string; readDir: string } => {
@@ -17,7 +21,7 @@ const splitPath = (input: string): { dirPart: string; readDir: string } => {
 };
 
 const completeFromCandidates =
-	(candidates: ReadonlyArray<string>) =>
+	(candidates: ReadonlyArray<string>): CompletionThunk =>
 	(prefix: string): CompletionResult => {
 		const matches = pipe(
 			candidates,
@@ -54,7 +58,7 @@ export const makeCompleteArgument =
 	(
 		listFiles: (dir: string) => ReadonlyArray<string>,
 		listDirectories: (dir: string) => ReadonlyArray<string>,
-	) =>
+	): CompletionThunk =>
 	(input: string): CompletionResult => {
 		const { dirPart, readDir } = splitPath(input);
 		const fileCandidates = pipe(
@@ -69,8 +73,8 @@ export const makeCompleteArgument =
 	};
 
 export const makeCompleter = (
-	completeCommand: (prefix: string) => CompletionResult,
-	completeArgument: (prefix: string) => CompletionResult,
+	completeCommand: CompletionThunk,
+	completeArgument: CompletionThunk,
 	bell: IO.IO<void>,
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
 ): ((line: string) => [ReadonlyArray<string>, string]) => {
