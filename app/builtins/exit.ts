@@ -5,10 +5,9 @@ import * as RA from "fp-ts/ReadonlyArray";
 import { type Command, ResultTag } from "../types";
 
 const parseExitCode = (errorCode: string): number => {
-	const parsed = Number(errorCode ?? 0);
+	const parsed = Number(errorCode);
 	return Number.isFinite(parsed) ? parsed : 0;
 };
-
 export const exit: Command = (args) =>
 	pipe(
 		RA.head(args),
