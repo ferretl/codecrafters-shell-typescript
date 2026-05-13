@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { pipe } from "fp-ts/function";
 import type * as IO from "fp-ts/IO";
 import { newIORef } from "fp-ts/lib/IORef";
@@ -10,12 +8,6 @@ import { builtinNames } from "../builtins";
 import { type CompletionResult, CompletionTag } from "./CompletionResult";
 import { longestCommonPrefix } from "./longestCommonPrefix";
 
-const readDirSafe = (dir: string): ReadonlyArray<string> =>
-	pipe(
-		O.tryCatch(() => fs.readdirSync(dir)),
-		O.getOrElse((): ReadonlyArray<string> => []),
-	);
-
 const splitPath = (input: string): { dirPart: string; readDir: string } => {
 	const lastSlash = input.lastIndexOf("/");
 	if (lastSlash === -1) return { dirPart: "", readDir: "." };
@@ -23,56 +15,6 @@ const splitPath = (input: string): { dirPart: string; readDir: string } => {
 	const readDir = dirPart === "/" ? "/" : dirPart.slice(0, -1);
 	return { dirPart, readDir };
 };
-
-const isExecutable = (filePath: string): boolean =>
-	pipe(
-		O.tryCatch(() => fs.accessSync(filePath, fs.constants.X_OK)),
-		O.isSome,
-	);
-
-const isFile = (filePath: string): boolean =>
-	pipe(
-		O.tryCatch(() => fs.statSync(filePath)),
-		O.map((stats) => stats.isFile()),
-		O.getOrElse(() => false),
-	);
-
-const isDirectory = (filePath: string): boolean =>
-	pipe(
-		O.tryCatch(() => fs.statSync(filePath)),
-		O.map((stats) => stats.isDirectory()),
-		O.getOrElse(() => false),
-	);
-
-const listExecutablesInDir = (dir: string): ReadonlyArray<string> =>
-	pipe(
-		readDirSafe(dir),
-		RA.filter((name) => isExecutable(path.join(dir, name))),
-	);
-
-export const listFilesInDir = (
-	dir: string = process.cwd(),
-): ReadonlyArray<string> =>
-	pipe(
-		readDirSafe(dir),
-		RA.filter((name) => isFile(path.join(dir, name))),
-	);
-
-export const listDirectoriesInDir = (
-	dir: string = process.cwd(),
-): ReadonlyArray<string> =>
-	pipe(
-		readDirSafe(dir),
-		RA.filter((name) => isDirectory(path.join(dir, name))),
-	);
-
-export const listPathExecutables = (): ReadonlyArray<string> =>
-	pipe(
-		O.fromNullable(process.env.PATH),
-		O.map((PATH) => PATH.split(path.delimiter)),
-		O.getOrElse((): ReadonlyArray<string> => []),
-		RA.chain(listExecutablesInDir),
-	);
 
 const completeFromCandidates =
 	(candidates: ReadonlyArray<string>) =>
