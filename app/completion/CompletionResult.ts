@@ -11,4 +11,4 @@ export type CompletionResult =
 	| { _tag: CompletionTag.PartialComplete; value: string }
 	| { _tag: CompletionTag.ShowMatches; matches: ReadonlyArray<string> };
 
-export type CompletionThunk = (prefix: string) => CompletionResult;
+export type Completer = (prefix: string) => CompletionResult;

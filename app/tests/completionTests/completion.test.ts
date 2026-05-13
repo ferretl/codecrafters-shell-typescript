@@ -1,10 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { CompletionTag } from "../../completion/CompletionResult";
+
+import { makeCompleter } from "../../completion/makeCompleter";
 import {
 	makeCompleteArgument,
 	makeCompleteCommand,
-	makeCompleter,
-} from "../../completion/completionCommand";
+} from "../../completion/candidates";
 
 describe("completeCommand", () => {
 	const completeCommand = makeCompleteCommand([]);
