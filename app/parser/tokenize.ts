@@ -4,9 +4,9 @@ import * as RA from "fp-ts/ReadonlyArray";
 import type { CommandArgs } from "../types";
 
 enum QuoteMode {
-	None,
-	Single,
-	Double,
+	None = "None",
+	Single = "Single",
+	Double = "Double",
 }
 
 type ParseState = {

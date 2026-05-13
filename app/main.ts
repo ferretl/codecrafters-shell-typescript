@@ -56,7 +56,7 @@ const writeToConsole =
 		pipe(
 			text,
 			O.match(
-				() => undefined,
+				() => {},
 				(s) => fallback(s),
 			),
 		);
