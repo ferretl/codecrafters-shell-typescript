@@ -32,6 +32,15 @@ rl.prompt();
 const nonEmpty = (s: string): O.Option<string> =>
 	S.isEmpty(s) ? O.none : O.some(s);
 
+const createWriteableContent = (text: O.Option<string>) =>
+	pipe(
+		text,
+		O.match(
+			() => "",
+			(s) => `${s}\n`,
+		),
+	);
+
 export const runExecutable =
 	(dir: string, name: string, args: CommandArgs): IOEvalResult =>
 	() => {
@@ -64,16 +73,12 @@ const writeToConsole =
 const writeToFile =
 	({ path, mode }: Redirect, text: O.Option<string>): IO.IO<void> =>
 	() => {
-		const content = pipe(
-			text,
-			O.match(
-				() => "",
-				(s) => `${s}\n`,
-			),
+		const content = createWriteableContent(text);
+		O.tryCatch(() =>
+			fs.writeFileSync(path, content, {
+				flag: mode === "append" ? "a" : "w",
+			}),
 		);
-		fs.writeFileSync(path, content, {
-			flag: mode === "append" ? "a" : "w",
-		});
 	};
 
 const handleStream = (
@@ -85,7 +90,7 @@ const handleStream = (
 		redirect,
 		O.match(
 			() => writeToConsole(text, fallback),
-			(r) => writeToFile(r, text),
+			(result) => writeToFile(result, text),
 		),
 	);
 
