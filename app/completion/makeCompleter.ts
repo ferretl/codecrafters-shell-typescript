@@ -16,6 +16,7 @@ type HandlerDependencies = {
 	bell: IO.IO<void>;
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>;
 };
+
 type MatchHandlers = {
 	[T in CompletionTag]: (
 		result: Extract<CompletionResult, { _tag: T }>,
