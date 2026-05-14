@@ -47,8 +47,8 @@ export const runExecutable =
 		const result = spawnSync(`${dir}/${name}`, [...args], {
 			argv0: name,
 			encoding: "utf-8",
-			stdio: ["pipe", "pipe", "pipe"],
 		});
+
 		return result.error
 			? E.left({ message: `${name}: ${result.error.message}` })
 			: E.right(
@@ -64,10 +64,7 @@ const writeToConsole =
 	() =>
 		pipe(
 			text,
-			O.match(
-				() => {},
-				(s) => fallback(s),
-			),
+			O.match(noop, (s) => fallback(s)),
 		);
 
 const writeToFile =
