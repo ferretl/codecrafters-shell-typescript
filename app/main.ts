@@ -90,7 +90,7 @@ const handleStream = (
 		redirect,
 		O.match(
 			() => writeToConsole(text, fallback),
-			(result) => writeToFile(result, text),
+			(redirect) => writeToFile(redirect, text),
 		),
 	);
 
