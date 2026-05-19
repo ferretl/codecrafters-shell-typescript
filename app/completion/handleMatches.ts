@@ -4,6 +4,12 @@ import * as RA from "fp-ts/ReadonlyArray";
 import { type CompletionResult, CompletionTag } from "./CompletionResult";
 import { longestCommonPrefix } from "./longestCommonPrefix";
 
+enum MatchCategory {
+	Empty = "empty",
+	Single = "single",
+	Many = "many",
+}
+
 const showMatches = (matches: ReadonlyArray<string>): CompletionResult => ({
 	_tag: CompletionTag.ShowMatches,
 	matches,
@@ -31,13 +37,8 @@ const resolveMultiple = (
 				partialOrShow(matches, prefix, longestCommonPrefix),
 		),
 	);
-enum MatchCategory {
-	Empty = "empty",
-	Single = "single",
-	Many = "many",
-}
 
-const categorize = (matches: ReadonlyArray<string>): MatchCategory =>
+const categorise = (matches: ReadonlyArray<string>): MatchCategory =>
 	RA.isEmpty(matches)
 		? MatchCategory.Empty
 		: matches.length === 1
@@ -56,5 +57,7 @@ const matchCategoryHandlers: Record<
 export const handleMatches = (
 	matches: ReadonlyArray<string>,
 	prefix: string,
-): CompletionResult =>
-	matchCategoryHandlers[categorize(matches)](matches, prefix);
+): CompletionResult => {
+	const handlerFunction = matchCategoryHandlers[categorise(matches)];
+	return handlerFunction(matches, prefix);
+};
