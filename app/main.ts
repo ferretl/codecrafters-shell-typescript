@@ -26,7 +26,7 @@ const handleShellExit =
 	() => {
 		if (result._tag === ResultTag.Exit) {
 			rl.close();
-			setImmediate(() => process.exit(result.code));
+			process.exit(result.code);
 		}
 	};
 
