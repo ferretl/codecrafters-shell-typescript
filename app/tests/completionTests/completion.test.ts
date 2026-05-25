@@ -118,7 +118,7 @@ describe("completer arg position", () => {
 			() => ({ _tag: CompletionTag.Complete, value: "raspberry-90.txt " }),
 			mock(),
 			mock(() => () => {}),
-		);
+		)();
 
 		expect(completer("wc raspberr")).toEqual([
 			["raspberry-90.txt "],
@@ -132,7 +132,7 @@ describe("completer arg position", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			mock(),
 			mock(() => () => {}),
-		);
+		)();
 
 		expect(completer("ec")).toEqual([["echo "], "ec"]);
 	});
@@ -180,7 +180,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		expect(completer("xyz")).toEqual([[], "xyz"]);
 		expect(bell).toHaveBeenCalledTimes(1);
@@ -195,7 +195,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		expect(completer("ec")).toEqual([["echo "], "ec"]);
 		expect(bell).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		expect(completer("cu")).toEqual([["custom_"], "cu"]);
 		expect(bell).not.toHaveBeenCalled();
@@ -228,7 +228,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		expect(completer("ex")).toEqual([[], "ex"]);
 		expect(bell).toHaveBeenCalledTimes(1);
@@ -249,7 +249,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		completer("ex");
 		completer("ex");
@@ -270,7 +270,7 @@ describe("completer", () => {
 			() => ({ _tag: CompletionTag.NoMatch }),
 			bell,
 			list,
-		);
+		)();
 
 		completer("ex");
 		completer("ec");

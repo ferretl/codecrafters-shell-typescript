@@ -1,33 +1,35 @@
 import { expect } from "bun:test";
 import type { Readable } from "node:stream";
 import type * as E from "fp-ts/Either";
+import type * as IO from "fp-ts/IO";
 import { ResultTag, type StreamedCommand } from "../types";
 
 const readAll = async (r: Readable): Promise<string> =>
 	(await r.toArray()).join("");
 
 export const expectStdout = async (
-	cmd: StreamedCommand,
+	cmd: IO.IO<StreamedCommand>,
 	expected: string,
 ): Promise<void> => {
-	expect(await readAll(cmd.stdout)).toBe(expected);
+	expect(await readAll(cmd().stdout)).toBe(expected);
 };
 
 export const expectStderr = async (
-	cmd: StreamedCommand,
+	cmd: IO.IO<StreamedCommand>,
 	expected: string,
 ): Promise<void> => {
-	expect(await readAll(cmd.stderr)).toBe(expected);
+	expect(await readAll(cmd().stderr)).toBe(expected);
 };
 
 export const expectExit = async (
-	cmd: StreamedCommand,
+	cmd: IO.IO<StreamedCommand>,
 	code: number,
 ): Promise<void> => {
+	const executed = cmd();
 	const [, , result] = await Promise.all([
-		cmd.stdout.toArray(),
-		cmd.stderr.toArray(),
-		cmd.done(),
+		executed.stdout.toArray(),
+		executed.stderr.toArray(),
+		executed.done(),
 	]);
 	if (result._tag !== "Right") {
 		throw new Error(`expected Right, got Left: ${result.left.message}`);

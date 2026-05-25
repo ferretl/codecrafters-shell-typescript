@@ -51,29 +51,28 @@ const flushIfPending: StepFn = (state) =>
 
 const beginEscape: StepFn = (state) => ({ ...state, escaped: true });
 
-const expandTilde: StepFn = (state, char) =>
-	appendToState(state, state.current ? char : (process.env.HOME ?? "~"));
+const expandTilde =
+	(home: string): StepFn =>
+	(state, char) =>
+		appendToState(state, state.current ? char : home);
 
 const flushAndEmit =
 	(token: string): StepFn =>
 	(state) =>
-		pipe(flushIfPending(state, token), (state) => ({
-			...state,
-			args: RA.append(token)(state.args),
+		pipe(flushIfPending(state, token), (next) => ({
+			...next,
+			args: RA.append(token)(next.args),
 		}));
 
-const unquotedHandlers: Record<string, StepFn> = {
+const buildUnquotedHandlers = (home: string): Record<string, StepFn> => ({
 	"'": setQuoteMode(QuoteMode.Single),
 	'"': setQuoteMode(QuoteMode.Double),
 	" ": flushIfPending,
 	"\t": flushIfPending,
 	"\\": beginEscape,
-	"~": expandTilde,
+	"~": expandTilde(home),
 	"|": flushAndEmit("|"),
-};
-
-const stepUnquoted: StepFn = (state, char) =>
-	(unquotedHandlers[char] ?? appendToState)(state, char);
+});
 
 const stepInsideSingle: StepFn = (state, char) => stepQuoted(state, char, "'");
 
@@ -85,31 +84,40 @@ const DOUBLE_SPECIALS = new Set(['"', "\\"]);
 const stepEscapedDouble: StepFn = (state, char) =>
 	appendToState(state, DOUBLE_SPECIALS.has(char) ? char : `\\${char}`);
 
-const modeHandlers: Record<QuoteMode, StepFn> = {
-	[QuoteMode.None]: stepUnquoted,
-	[QuoteMode.Single]: stepInsideSingle,
-	[QuoteMode.Double]: stepInsideDouble,
+const buildStepChar = (home: string): StepFn => {
+	const unquotedHandlers = buildUnquotedHandlers(home);
+	const stepUnquoted: StepFn = (state, char) =>
+		(unquotedHandlers[char] ?? appendToState)(state, char);
+
+	const modeHandlers: Record<QuoteMode, StepFn> = {
+		[QuoteMode.None]: stepUnquoted,
+		[QuoteMode.Single]: stepInsideSingle,
+		[QuoteMode.Double]: stepInsideDouble,
+	};
+
+	const escapedHandlers: Record<QuoteMode, StepFn> = {
+		[QuoteMode.None]: appendToState,
+		[QuoteMode.Single]: stepInsideSingle,
+		[QuoteMode.Double]: stepEscapedDouble,
+	};
+
+	return (state, char) =>
+		(state.escaped ? escapedHandlers : modeHandlers)[state.quoteMode](
+			state,
+			char,
+		);
 };
 
-const escapedHandlers: Record<QuoteMode, StepFn> = {
-	[QuoteMode.None]: appendToState,
-	[QuoteMode.Single]: stepInsideSingle,
-	[QuoteMode.Double]: stepEscapedDouble,
-};
-
-const stepChar: StepFn = (state, char) =>
-	(state.escaped ? escapedHandlers : modeHandlers)[state.quoteMode](
-		state,
-		char,
+export const tokenize = (input: string, home: string): CommandArgs => {
+	const { current, args } = pipe(
+		[...input],
+		RA.reduce(initialState, buildStepChar(home)),
 	);
-
-export const tokenize = (input: string): CommandArgs => {
-	const { current, args } = pipe([...input], RA.reduce(initialState, stepChar));
 	return pipe(
 		O.fromPredicate((s: string) => s.length > 0)(current),
 		O.match(
 			() => args,
-			(character) => RA.append(character)(args),
+			(token) => RA.append(token)(args),
 		),
 	);
 };

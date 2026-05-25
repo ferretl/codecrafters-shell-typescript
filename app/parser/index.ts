@@ -22,10 +22,12 @@ type SplitState = {
 	segments: Segments;
 };
 
+const initialSplitState: SplitState = { current: [], segments: [] };
+
 const splitOnPipe = (tokens: ReadonlyArray<string>): Segments =>
 	pipe(
 		tokens,
-		RA.reduce({ current: [], segments: [] } as SplitState, (state, token) =>
+		RA.reduce(initialSplitState, (state, token) =>
 			token === "|"
 				? { current: [], segments: RA.append(state.current)(state.segments) }
 				: {
@@ -60,11 +62,13 @@ const validatePipeline = (
 		? E.left({ message: "syntax error near unexpected token '|'" })
 		: E.right(segments);
 
-export default (line: string): E.Either<ParseError, ParsedPipeline> =>
+export default (
+	line: string,
+	home: string,
+): E.Either<ParseError, ParsedPipeline> =>
 	pipe(
-		line,
-		S.trim,
-		tokenize,
+		S.trim(line),
+		(trimmed) => tokenize(trimmed, home),
 		splitOnPipe,
 		validatePipeline,
 		E.chain(RA.traverse(E.Applicative)(parseSegment)),

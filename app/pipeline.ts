@@ -7,48 +7,58 @@ import * as RA from "fp-ts/ReadonlyArray";
 import type * as TE from "fp-ts/TaskEither";
 import { dispatchCommand } from "./dispatch";
 import type { ParsedPipeline, ParsedSegment, Redirect } from "./parser";
-import { type CommandError, type CommandResult, empty, type StreamedCommand } from "./types";
+import {
+	type CommandError,
+	type CommandResult,
+	empty,
+	type StreamedCommand,
+} from "./types";
 
 type PipelineBuild = {
 	nextStdin: Readable;
 	dones: ReadonlyArray<TE.TaskEither<CommandError, CommandResult>>;
 };
 
-const sinkForRedirect = (redirect: Redirect): Writable => {
-	const stream = fs.createWriteStream(redirect.path, {
-		flags: redirect.mode === "append" ? "a" : "w",
-	});
-	stream.on("error", (err) => {
-		console.error(`${redirect.path}: ${err.message}`);
-	});
-	return stream;
-};
+const sinkForRedirect =
+	(redirect: Redirect): IO.IO<Writable> =>
+	() => {
+		const stream = fs.createWriteStream(redirect.path, {
+			flags: redirect.mode === "append" ? "a" : "w",
+		});
+		stream.on("error", (err) => {
+			console.error(`${redirect.path}: ${err.message}`);
+		});
+		return stream;
+	};
 
-const wireStream =
-	(
-		source: Readable,
-		redirect: O.Option<Redirect>,
-		fallback: Writable,
-	): IO.IO<void> =>
-	() =>
-		pipe(
-			redirect,
-			O.match(
-				() => {
-					source.pipe(fallback, { end: false });
-				},
-				(redirect) => {
-					source.pipe(sinkForRedirect(redirect));
-				},
-			),
-		);
-
-const writeToAndStop =
-	(source: Readable, sink: Writable, endSink: boolean): IO.IO<Readable> =>
+const pipeSource =
+	(source: Readable, sink: Writable, endSink: boolean): IO.IO<void> =>
 	() => {
 		source.pipe(sink, { end: endSink });
-		return empty();
 	};
+
+const wireStream = (
+	source: Readable,
+	redirect: O.Option<Redirect>,
+	fallback: Writable,
+): IO.IO<void> =>
+	pipe(
+		redirect,
+		O.match(
+			() => pipeSource(source, fallback, false),
+			(r) =>
+				pipe(
+					sinkForRedirect(r),
+					IO.chain((sink) => pipeSource(source, sink, true)),
+				),
+		),
+	);
+
+const writeToAndStop = (
+	source: Readable,
+	sink: Writable,
+	endSink: boolean,
+): IO.IO<Readable> => pipe(pipeSource(source, sink, endSink), IO.map(empty));
 
 const getNextStdin = (
 	segment: ParsedSegment,
@@ -63,26 +73,34 @@ const getNextStdin = (
 					? writeToAndStop(command.stdout, process.stdout, false)
 					: IO.of(command.stdout),
 			(redirect) =>
-				writeToAndStop(command.stdout, sinkForRedirect(redirect), true),
+				pipe(
+					sinkForRedirect(redirect),
+					IO.chain((sink) => writeToAndStop(command.stdout, sink, true)),
+				),
 		),
 	);
 
-const startSegment =
-	(
-		segment: ParsedSegment,
-		stdin: Readable,
-		isLastSegment: boolean,
-	): IO.IO<{ command: StreamedCommand; nextStdin: Readable }> =>
-	() => {
-		const cmd = dispatchCommand(segment.name, segment.args, stdin);
-		wireStream(cmd.stderr, segment.redirectOptions.stderr, process.stderr)();
-		const nextStdin = getNextStdin(segment, isLastSegment, cmd)();
-		return { command: cmd, nextStdin };
-	};
+const startSegment = (
+	segment: ParsedSegment,
+	stdin: Readable,
+	isLastSegment: boolean,
+): IO.IO<{ command: StreamedCommand; nextStdin: Readable }> =>
+	pipe(
+		dispatchCommand(segment.name, segment.args, stdin),
+		IO.chain((command) =>
+			pipe(
+				wireStream(
+					command.stderr,
+					segment.redirectOptions.stderr,
+					process.stderr,
+				),
+				IO.chain(() => getNextStdin(segment, isLastSegment, command)),
+				IO.map((nextStdin) => ({ command, nextStdin })),
+			),
+		),
+	);
 
-export const buildPipeline = (
-	pipeline: ParsedPipeline,
-): IO.IO<PipelineBuild> =>
+export const buildPipeline = (pipeline: ParsedPipeline): IO.IO<PipelineBuild> =>
 	pipe(
 		pipeline,
 		RA.reduceWithIndex<ParsedSegment, IO.IO<PipelineBuild>>(

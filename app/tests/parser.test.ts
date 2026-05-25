@@ -1,17 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import parser, { type ParsedSegment } from "../parser";
 import { expectLeft, unwrapRight } from "./helpers";
 
-const originalHome = process.env.HOME;
-beforeAll(() => {
-	process.env.HOME = "/home/test";
-});
-afterAll(() => {
-	process.env.HOME = originalHome;
-});
+const TEST_HOME = "/home/test";
 
 const blankSegment: ParsedSegment = {
 	name: "",
@@ -20,8 +14,7 @@ const blankSegment: ParsedSegment = {
 };
 const parseFirst = (line: string) =>
 	pipe(
-		line,
-		parser,
+		parser(line, TEST_HOME),
 		unwrapRight,
 		RA.head,
 		O.getOrElse(() => blankSegment),
@@ -211,7 +204,7 @@ describe("parse errors", () => {
 		"2>>",
 	])("rejects a trailing '%s' with no target", (op) => {
 		expectLeft(
-			parser(`echo hi ${op}`),
+			parser(`echo hi ${op}`, TEST_HOME),
 			`syntax error: missing target for redirect '${op}'`,
 		);
 	});

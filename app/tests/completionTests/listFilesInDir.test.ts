@@ -15,31 +15,28 @@ describe("listFilesInDir", () => {
 	});
 
 	afterEach(() => {
-		test("returns the files present in the directory", () => {
-			fs.writeFileSync(path.join(tmpDir, "a.txt"), "");
-			fs.writeFileSync(path.join(tmpDir, "b.txt"), "");
+		fs.rmSync(tmpDir, { recursive: true, force: true });
+	});
 
-			expect([...listFilesInDir(tmpDir)].sort()).toEqual(["a.txt", "b.txt"]);
-		});
+	test("returns the files present in the directory", () => {
+		fs.writeFileSync(path.join(tmpDir, "a.txt"), "");
+		fs.writeFileSync(path.join(tmpDir, "b.txt"), "");
 
-		test("returns an empty array for an empty directory", () => {
-			expect([...listFilesInDir(tmpDir)]).toEqual([]);
-		});
+		expect([...listFilesInDir(tmpDir)()].sort()).toEqual(["a.txt", "b.txt"]);
+	});
 
-		test("returns an empty array for a directory that does not exist", () => {
-			expect([...listFilesInDir(path.join(tmpDir, "missing"))]).toEqual([]);
-		});
+	test("returns an empty array for an empty directory", () => {
+		expect([...listFilesInDir(tmpDir)()]).toEqual([]);
+	});
 
-		test("includes subdirectories alongside files", () => {
-			fs.mkdirSync(path.join(tmpDir, "subdir"));
-			fs.writeFileSync(path.join(tmpDir, "file.txt"), "");
+	test("returns an empty array for a directory that does not exist", () => {
+		expect([...listFilesInDir(path.join(tmpDir, "missing"))()]).toEqual([]);
+	});
 
-			expect([...listFilesInDir(tmpDir)].sort()).toEqual([
-				"file.txt",
-				"subdir",
-			]);
-		});
+	test("excludes subdirectories", () => {
+		fs.mkdirSync(path.join(tmpDir, "subdir"));
+		fs.writeFileSync(path.join(tmpDir, "file.txt"), "");
 
-		expect([...listFilesInDir(tmpDir)].sort()).toEqual(["file.txt", "subdir"]);
+		expect([...listFilesInDir(tmpDir)()].sort()).toEqual(["file.txt"]);
 	});
 });

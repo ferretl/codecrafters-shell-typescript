@@ -17,13 +17,6 @@ type HandlerDependencies = {
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>;
 };
 
-type MatchHandlers = {
-	[T in CompletionTag]: (
-		result: Extract<CompletionResult, { _tag: T }>,
-		dependencies: HandlerDependencies,
-	) => IO.IO<CompletionTuple>;
-};
-
 type CompleterContext = {
 	completeCommand: Completer;
 	completeArgument: Completer;
@@ -71,7 +64,7 @@ const listAndClear = (
 	);
 
 const showMatches = (
-	result: Extract<CompletionResult, { _tag: CompletionTag.ShowMatches }>,
+	matches: ReadonlyArray<string>,
 	dependencies: HandlerDependencies,
 ): IO.IO<CompletionTuple> =>
 	pipe(
@@ -79,28 +72,24 @@ const showMatches = (
 		IO.chain((prev) =>
 			prev !== dependencies.prefix
 				? ringForNewAmbiguity(dependencies)
-				: listAndClear(result.matches, dependencies),
+				: listAndClear(matches, dependencies),
 		),
 	);
-
-const matchHandlers: MatchHandlers = {
-	[CompletionTag.NoMatch]: (_result, dependencies) => noMatch(dependencies),
-	[CompletionTag.Complete]: (result, dependencies) =>
-		completed(result.value, dependencies),
-	[CompletionTag.PartialComplete]: (result, dependencies) =>
-		completed(result.value, dependencies),
-	[CompletionTag.ShowMatches]: showMatches,
-};
 
 const dispatchResult = (
 	result: CompletionResult,
 	dependencies: HandlerDependencies,
 ): IO.IO<CompletionTuple> => {
-	const handler = matchHandlers[result._tag] as (
-		result: CompletionResult,
-		dependencies: HandlerDependencies,
-	) => IO.IO<CompletionTuple>;
-	return handler(result, dependencies);
+	switch (result._tag) {
+		case CompletionTag.NoMatch:
+			return noMatch(dependencies);
+		case CompletionTag.Complete:
+			return completed(result.value, dependencies);
+		case CompletionTag.PartialComplete:
+			return completed(result.value, dependencies);
+		case CompletionTag.ShowMatches:
+			return showMatches(result.matches, dependencies);
+	}
 };
 
 const extractPrefix = (
@@ -125,7 +114,7 @@ const runCompletion = (
 const completeLine = (
 	line: string,
 	context: CompleterContext,
-): CompletionTuple => {
+): IO.IO<CompletionTuple> => {
 	const { prefix, inArgPosition } = extractPrefix(line);
 	const result = runCompletion(
 		inArgPosition,
@@ -139,7 +128,7 @@ const completeLine = (
 		lastAmbiguousPrefix: context.lastAmbiguousPrefix,
 		bell: context.bell,
 		list: context.list,
-	})();
+	});
 };
 
 export const makeCompleter = (
@@ -147,13 +136,17 @@ export const makeCompleter = (
 	completeArgument: Completer,
 	bell: IO.IO<void>,
 	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
-): ((line: string) => CompletionTuple) => {
-	const context: CompleterContext = {
-		completeCommand,
-		completeArgument,
-		bell,
-		list,
-		lastAmbiguousPrefix: newIORef("")(),
-	};
-	return (line) => completeLine(line, context);
-};
+): IO.IO<(line: string) => CompletionTuple> =>
+	pipe(
+		newIORef(""),
+		IO.map((lastAmbiguousPrefix) => {
+			const context: CompleterContext = {
+				completeCommand,
+				completeArgument,
+				bell,
+				list,
+				lastAmbiguousPrefix,
+			};
+			return (line: string) => completeLine(line, context)();
+		}),
+	);
