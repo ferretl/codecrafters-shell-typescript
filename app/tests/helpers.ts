@@ -24,7 +24,11 @@ export const expectExit = async (
 	cmd: StreamedCommand,
 	code: number,
 ): Promise<void> => {
-	const result = await cmd.done();
+	const [, , result] = await Promise.all([
+		cmd.stdout.toArray(),
+		cmd.stderr.toArray(),
+		cmd.done(),
+	]);
 	if (result._tag !== "Right") {
 		throw new Error(`expected Right, got Left: ${result.left.message}`);
 	}

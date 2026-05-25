@@ -1,8 +1,7 @@
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import * as TE from "fp-ts/TaskEither";
-import { type Command, empty, fromString, normal } from "../types";
+import { builtinCommand, type Command, empty, fromString, normal } from "../types";
 import { findExecutable, isBuiltinName } from "./lookup";
 
 const asBuiltin = (name: string) =>
@@ -28,15 +27,8 @@ export const type: Command = (args) =>
 	pipe(
 		RA.head(args),
 		O.match(
-			() => ({
-				stdout: empty(),
-				stderr: fromString("No arguments given!\n"),
-				done: TE.right(normal),
-			}),
-			(name) => ({
-				stdout: fromString(`${describeType(name)}\n`),
-				stderr: empty(),
-				done: TE.right(normal),
-			}),
+			() => builtinCommand(empty(), fromString("No arguments given!\n"), normal),
+			(name) =>
+				builtinCommand(fromString(`${describeType(name)}\n`), empty(), normal),
 		),
 	);
