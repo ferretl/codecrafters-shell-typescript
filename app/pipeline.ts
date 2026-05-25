@@ -14,8 +14,15 @@ type PipelineBuild = {
 	dones: ReadonlyArray<TE.TaskEither<CommandError, CommandResult>>;
 };
 
-const sinkForRedirect = (r: Redirect): Writable =>
-	fs.createWriteStream(r.path, { flags: r.mode === "append" ? "a" : "w" });
+const sinkForRedirect = (r: Redirect): Writable => {
+	const stream = fs.createWriteStream(r.path, {
+		flags: r.mode === "append" ? "a" : "w",
+	});
+	stream.on("error", (err) => {
+		console.error(`${r.path}: ${err.message}`);
+	});
+	return stream;
+};
 
 const wireStream = (
 	source: Readable,

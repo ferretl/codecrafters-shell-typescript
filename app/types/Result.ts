@@ -1,5 +1,3 @@
-import * as O from "fp-ts/lib/Option";
-
 export enum ResultTag {
 	Normal = "Normal",
 	Exit = "Exit",
