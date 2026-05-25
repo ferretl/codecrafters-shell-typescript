@@ -10,10 +10,15 @@ import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
-import parseLine, { type ParsedSegment, type Redirect } from "./parser";
+import parseLine, {
+	type ParsedPipeline,
+	type ParsedSegment,
+	type Redirect,
+} from "./parser";
 import type { RedirectOptions } from "./parser/redirects";
 import {
 	type CommandArgs,
+	type CommandError,
 	type CommandResult,
 	type ExitResult,
 	type IOEvalResult,
@@ -44,11 +49,17 @@ const createWriteableContent = (text: O.Option<string>) =>
 	);
 
 export const runExecutable =
-	(dir: string, name: string, args: CommandArgs): IOEvalResult =>
+	(
+		dir: string,
+		name: string,
+		args: CommandArgs,
+		stdin: O.Option<string>,
+	): IOEvalResult =>
 	() => {
 		const result = spawnSync(`${dir}/${name}`, [...args], {
 			argv0: name,
 			encoding: "utf-8",
+			input: O.toUndefined(stdin),
 		});
 
 		return result.error
@@ -80,6 +91,59 @@ const writeToFile =
 		);
 	};
 
+const forwardStdout = (
+	redirect: O.Option<Redirect>,
+	text: O.Option<string>,
+): IOE.IOEither<never, O.Option<string>> =>
+	pipe(
+		redirect,
+		O.match(
+			() => IOE.right(text), // forward to next segment
+			(r) =>
+				pipe(
+					writeToFile(r, text),
+					IOE.fromIO,
+					IOE.map(() => O.none),
+				),
+		),
+	);
+
+const runIntermediate =
+	(segment: ParsedSegment) =>
+	(stdin: O.Option<string>): IOE.IOEither<CommandError, O.Option<string>> =>
+		pipe(
+			dispatchCommand(segment.name, segment.args, stdin),
+			IOE.chainW((result) =>
+				result._tag === ResultTag.Exit
+					? IOE.fromIO(
+							pipe(
+								exitProgram(result),
+								IO.map(() => O.none),
+							),
+						)
+					: pipe(
+							IOE.fromIO(
+								handleStream(
+									segment.redirectOptions.stderr,
+									result.errorText,
+									console.error,
+								),
+							),
+							IOE.chainW(() =>
+								forwardStdout(segment.redirectOptions.stdout, result.text),
+							),
+						),
+			),
+		);
+
+const runLast =
+	(segment: ParsedSegment) =>
+	(stdin: O.Option<string>): IO.IO<void> =>
+		pipe(
+			dispatchCommand(segment.name, segment.args, stdin),
+			IOE.matchE(logError, handleCommandResult(segment.redirectOptions)),
+		);
+
 const handleStream = (
 	redirect: O.Option<Redirect>,
 	text: O.Option<string>,
@@ -93,7 +157,11 @@ const handleStream = (
 		),
 	);
 
-const dispatchCommand = (name: string, args: CommandArgs): IOEvalResult =>
+const dispatchCommand = (
+	name: string,
+	args: CommandArgs,
+	stdin: O.Option<string>,
+): IOEvalResult =>
 	pipe(
 		findBuiltin(name),
 		O.match(
@@ -102,10 +170,10 @@ const dispatchCommand = (name: string, args: CommandArgs): IOEvalResult =>
 					findExecutable(name),
 					O.match(
 						() => IOE.left({ message: `${name}: command not found` }),
-						(dir) => runExecutable(dir, name, args),
+						(dir) => runExecutable(dir, name, args, stdin),
 					),
 				),
-			(command) => command(args),
+			(command) => command(args, stdin),
 		),
 	);
 
@@ -139,23 +207,33 @@ const logError =
 	() =>
 		console.error(err.message);
 
-const evalParsed = ({
-	name,
-	args,
-	redirectOptions,
-}: ParsedSegment): IO.IO<void> =>
-	S.isEmpty(name)
-		? noop
-		: pipe(
-				dispatchCommand(name, args),
-				IOE.matchE(logError, handleCommandResult(redirectOptions)),
-			);
+const executePipeline = (
+	intermediates: ReadonlyArray<ParsedSegment>,
+	lastSegment: ParsedSegment,
+): IO.IO<void> =>
+	pipe(
+		intermediates,
+		RA.reduce(
+			IOE.right<CommandError, O.Option<string>>(O.none),
+			(acc, segment) => pipe(acc, IOE.chainW(runIntermediate(segment))),
+		),
+		IOE.matchE(logError, runLast(lastSegment)),
+	);
+
+const evalPipeline = (pipeline: ParsedPipeline): IO.IO<void> =>
+	pipe(
+		RA.last(pipeline),
+		O.match(
+			() => noop,
+			(lastSegment) =>
+				pipeline.length === 1 && S.isEmpty(lastSegment.name)
+					? noop
+					: executePipeline(RA.dropRight(1)(pipeline), lastSegment),
+		),
+	);
 
 const runLine = (line: string): IO.IO<void> =>
-	pipe(
-		parseLine(line),
-		E.match(logError, RA.traverse(IO.Applicative)(evalParsed)),
-	);
+	pipe(parseLine(line), E.match(logError, evalPipeline));
 
 rl.on("line", (line) => {
 	runLine(line)();
