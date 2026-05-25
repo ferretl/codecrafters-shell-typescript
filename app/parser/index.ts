@@ -56,7 +56,7 @@ const parseSegment = (
 const validatePipeline = (
 	segments: Segments,
 ): E.Either<ParseError, Segments> =>
-	RA.isNonEmpty(segments) && segments.some(RA.isEmpty)
+	segments.length > 1 && segments.some(RA.isEmpty)
 		? E.left({ message: "syntax error near unexpected token '|'" })
 		: E.right(segments);
 
