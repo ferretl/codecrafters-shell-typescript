@@ -1,25 +1,16 @@
-import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import type { Readable } from "node:stream";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
-import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import {
-	builtinCommand,
-	type CommandArgs,
 	type CommandError,
 	type CommandResult,
-	empty,
-	fromString,
-	normal,
 	ResultTag,
-	type StreamedCommand,
 } from "./types";
 
 const rl = createInterface({
@@ -29,57 +20,10 @@ const rl = createInterface({
 	completer,
 });
 
-rl.prompt();
-
-export const runExecutable = (
-	dir: string,
-	name: string,
-	args: CommandArgs,
-	stdin: Readable,
-): StreamedCommand => {
-	const child = spawn(`${dir}/${name}`, [...args], { argv0: name });
-	stdin.pipe(child.stdin);
-
-	return {
-		stdout: child.stdout,
-		stderr: child.stderr,
-		done: () =>
-			new Promise((resolve) => {
-				child.on("error", (err) =>
-					resolve(E.left({ message: `${name}: ${err.message}` })),
-				);
-				child.on("close", () => resolve(E.right(normal)));
-			}),
-	};
-};
-
-const commandNotFound = (name: string): StreamedCommand =>
-	builtinCommand(empty(), fromString(`${name}: command not found\n`), normal);
-
-export const dispatchCommand = (
-	name: string,
-	args: CommandArgs,
-	stdin: Readable,
-): StreamedCommand =>
-	pipe(
-		findBuiltin(name),
-		O.match(
-			() =>
-				pipe(
-					findExecutable(name),
-					O.match(
-						() => commandNotFound(name),
-						(dir) => runExecutable(dir, name, args, stdin),
-					),
-				),
-			(command) => command(args, stdin),
-		),
-	);
-
 const handleShellExit = (result: CommandResult): void => {
 	if (result._tag === ResultTag.Exit) {
 		rl.close();
-		process.exit(result.code);
+		setImmediate(() => process.exit(result.code));
 	}
 };
 
@@ -98,13 +42,18 @@ const runPipeline = (pipeline: ParsedPipeline): T.Task<void> =>
 	isBlankPipeline(pipeline)
 		? T.of(undefined)
 		: pipe(
-				buildPipeline(pipeline).dones,
-				T.sequenceArray,
-				T.map((results) =>
+				T.fromIO(buildPipeline(pipeline)),
+				T.chain(({ dones }) =>
 					pipe(
-						results,
-						RA.last,
-						O.match(() => undefined, handlePipelineFinal),
+						dones,
+						T.sequenceArray,
+						T.map((results) =>
+							pipe(
+								results,
+								RA.last,
+								O.match(() => undefined, handlePipelineFinal),
+							),
+						),
 					),
 				),
 			);
@@ -115,7 +64,12 @@ const runLine = (line: string): T.Task<void> =>
 		E.match((err) => T.fromIO(() => console.error(err.message)), runPipeline),
 	);
 
-rl.on("line", async (line) => {
-	await runLine(line)();
+const main = async (): Promise<void> => {
 	rl.prompt();
-});
+	for await (const line of rl) {
+		await runLine(line)();
+		rl.prompt();
+	}
+};
+
+main();
