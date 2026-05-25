@@ -1,30 +1,25 @@
-import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
+import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import type { Readable } from "node:stream";
 import * as E from "fp-ts/Either";
-import * as IO from "fp-ts/IO";
-import * as IOE from "fp-ts/IOEither";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import * as S from "fp-ts/string";
+import * as T from "fp-ts/Task";
+import * as TE from "fp-ts/TaskEither";
 import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
-import parseLine, {
-	type ParsedPipeline,
-	type ParsedSegment,
-	type Redirect,
-} from "./parser";
-import type { RedirectOptions } from "./parser/redirects";
+import parseLine, { type ParsedPipeline } from "./parser";
+import { buildPipeline } from "./pipeline";
 import {
 	type CommandArgs,
 	type CommandError,
 	type CommandResult,
-	type ExitResult,
-	type IOEvalResult,
-	type OutputResult,
-	output,
+	empty,
+	fromString,
+	normal,
 	ResultTag,
+	type StreamedCommand,
 } from "./types";
 
 const rl = createInterface({
@@ -36,127 +31,39 @@ const rl = createInterface({
 
 rl.prompt();
 
-const nonEmpty = (s: string): O.Option<string> =>
-	S.isEmpty(s) ? O.none : O.some(s);
-
-const createWriteableContent = (text: O.Option<string>) =>
-	pipe(
-		text,
-		O.match(
-			() => "",
-			(s) => (s.endsWith("\n") ? s : `${s}\n`),
-		),
-	);
-
-export const runExecutable =
-	(
-		dir: string,
-		name: string,
-		args: CommandArgs,
-		stdin: O.Option<string>,
-	): IOEvalResult =>
-	() => {
-		const result = spawnSync(`${dir}/${name}`, [...args], {
-			argv0: name,
-			encoding: "utf-8",
-			input: O.toUndefined(stdin),
-		});
-
-		return result.error
-			? E.left({ message: `${name}: ${result.error.message}` })
-			: E.right(output(nonEmpty(result.stdout), nonEmpty(result.stderr)));
-	};
-
-const writeToConsole =
-	(text: O.Option<string>, fallback: (s: string) => void): IO.IO<void> =>
-	() =>
-		pipe(
-			text,
-			O.match(noop, (s) => fallback(s.endsWith("\n") ? s.slice(0, -1) : s)),
-		);
-
-const writeToFile =
-	({ path, mode }: Redirect, text: O.Option<string>): IO.IO<void> =>
-	() => {
-		const content = createWriteableContent(text);
-		O.tryCatch(() =>
-			fs.writeFileSync(path, content, {
-				flag: mode === "append" ? "a" : "w",
-			}),
-		);
-	};
-
-const forwardStdout = (
-	redirect: O.Option<Redirect>,
-	text: O.Option<string>,
-): IOE.IOEither<never, O.Option<string>> =>
-	pipe(
-		redirect,
-		O.match(
-			() => IOE.right(text), // forward to next segment
-			(r) =>
-				pipe(
-					writeToFile(r, text),
-					IOE.fromIO,
-					IOE.map(() => O.none),
-				),
-		),
-	);
-
-const runIntermediate =
-	(segment: ParsedSegment) =>
-	(stdin: O.Option<string>): IOE.IOEither<CommandError, O.Option<string>> =>
-		pipe(
-			dispatchCommand(segment.name, segment.args, stdin),
-			IOE.chainW((result) =>
-				result._tag === ResultTag.Exit
-					? IOE.fromIO(
-							pipe(
-								exitProgram(result),
-								IO.map(() => O.none),
-							),
-						)
-					: pipe(
-							IOE.fromIO(
-								handleStream(
-									segment.redirectOptions.stderr,
-									result.errorText,
-									console.error,
-								),
-							),
-							IOE.chainW(() =>
-								forwardStdout(segment.redirectOptions.stdout, result.text),
-							),
-						),
-			),
-		);
-
-const runLast =
-	(segment: ParsedSegment) =>
-	(stdin: O.Option<string>): IO.IO<void> =>
-		pipe(
-			dispatchCommand(segment.name, segment.args, stdin),
-			IOE.matchE(logError, handleCommandResult(segment.redirectOptions)),
-		);
-
-const handleStream = (
-	redirect: O.Option<Redirect>,
-	text: O.Option<string>,
-	fallback: (s: string) => void,
-): IO.IO<void> =>
-	pipe(
-		redirect,
-		O.match(
-			() => writeToConsole(text, fallback),
-			(redirect) => writeToFile(redirect, text),
-		),
-	);
-
-const dispatchCommand = (
+export const runExecutable = (
+	dir: string,
 	name: string,
 	args: CommandArgs,
-	stdin: O.Option<string>,
-): IOEvalResult =>
+	stdin: Readable,
+): StreamedCommand => {
+	const child = spawn(`${dir}/${name}`, [...args], { argv0: name });
+	stdin.pipe(child.stdin);
+
+	return {
+		stdout: child.stdout,
+		stderr: child.stderr,
+		done: () =>
+			new Promise((resolve) => {
+				child.on("error", (err) =>
+					resolve(E.left({ message: `${name}: ${err.message}` })),
+				);
+				child.on("close", () => resolve(E.right(normal)));
+			}),
+	};
+};
+
+const commandNotFound = (name: string): StreamedCommand => ({
+	stdout: empty(),
+	stderr: fromString(`${name}: command not found\n`),
+	done: TE.right(normal),
+});
+
+export const dispatchCommand = (
+	name: string,
+	args: CommandArgs,
+	stdin: Readable,
+): StreamedCommand =>
 	pipe(
 		findBuiltin(name),
 		O.match(
@@ -164,7 +71,7 @@ const dispatchCommand = (
 				pipe(
 					findExecutable(name),
 					O.match(
-						() => IOE.left({ message: `${name}: command not found` }),
+						() => commandNotFound(name),
 						(dir) => runExecutable(dir, name, args, stdin),
 					),
 				),
@@ -172,65 +79,46 @@ const dispatchCommand = (
 		),
 	);
 
-const exitProgram =
-	(result: ExitResult): IO.IO<void> =>
-	() => {
+const handleShellExit = (result: CommandResult): void => {
+	if (result._tag === ResultTag.Exit) {
 		rl.close();
 		process.exit(result.code);
-	};
+	}
+};
 
-const handleOutput = (
-	result: OutputResult,
-	{ stdout, stderr }: RedirectOptions,
-): IO.IO<void> =>
+const handlePipelineFinal = (
+	result: E.Either<CommandError, CommandResult>,
+): void =>
 	pipe(
-		handleStream(stdout, result.text, console.log),
-		IO.apSecond(handleStream(stderr, result.errorText, console.error)),
+		result,
+		E.match((err) => console.error(err.message), handleShellExit),
 	);
 
-const handleCommandResult =
-	(redirectOptions: RedirectOptions) =>
-	(result: CommandResult): IO.IO<void> =>
-		result._tag === ResultTag.Output
-			? handleOutput(result, redirectOptions)
-			: exitProgram(result);
+const isBlankPipeline = (pipeline: ParsedPipeline): boolean =>
+	pipeline.length === 1 && pipeline[0].name === "";
 
-const noop: IO.IO<void> = () => {};
+const runPipeline = (pipeline: ParsedPipeline): T.Task<void> =>
+	isBlankPipeline(pipeline)
+		? T.of(undefined)
+		: pipe(
+				buildPipeline(pipeline).dones,
+				T.sequenceArray,
+				T.map((results) =>
+					pipe(
+						results,
+						RA.last,
+						O.match(() => undefined, handlePipelineFinal),
+					),
+				),
+			);
 
-const logError =
-	(err: { message: string }): IO.IO<void> =>
-	() =>
-		console.error(err.message);
-
-const executePipeline = (
-	intermediates: ReadonlyArray<ParsedSegment>,
-	lastSegment: ParsedSegment,
-): IO.IO<void> =>
+const runLine = (line: string): T.Task<void> =>
 	pipe(
-		intermediates,
-		RA.reduce(
-			IOE.right<CommandError, O.Option<string>>(O.none),
-			(acc, segment) => pipe(acc, IOE.chainW(runIntermediate(segment))),
-		),
-		IOE.matchE(logError, runLast(lastSegment)),
+		parseLine(line),
+		E.match((err) => T.fromIO(() => console.error(err.message)), runPipeline),
 	);
 
-const evalPipeline = (pipeline: ParsedPipeline): IO.IO<void> =>
-	pipe(
-		RA.last(pipeline),
-		O.match(
-			() => noop,
-			(lastSegment) =>
-				pipeline.length === 1 && S.isEmpty(lastSegment.name)
-					? noop
-					: executePipeline(RA.dropRight(1)(pipeline), lastSegment),
-		),
-	);
-
-const runLine = (line: string): IO.IO<void> =>
-	pipe(parseLine(line), E.match(logError, evalPipeline));
-
-rl.on("line", (line) => {
-	runLine(line)();
+rl.on("line", async (line) => {
+	await runLine(line)();
 	rl.prompt();
 });

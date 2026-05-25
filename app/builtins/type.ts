@@ -1,8 +1,8 @@
 import { pipe } from "fp-ts/lib/function";
-import * as IOE from "fp-ts/lib/IOEither";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import { type Command, type IOEvalResult, output } from "../types";
+import * as TE from "fp-ts/TaskEither";
+import { type Command, empty, fromString, normal } from "../types";
 import { findExecutable, isBuiltinName } from "./lookup";
 
 const asBuiltin = (name: string) =>
@@ -14,19 +14,29 @@ const asBuiltin = (name: string) =>
 const asExecutable = (name: string) =>
 	pipe(
 		findExecutable(name),
-		O.map((filePath) => `${name} is ${filePath}/${name}`),
+		O.map((dir) => `${name} is ${dir}/${name}`),
 	);
 
-const describeType = (name: string): IOEvalResult =>
+const describeType = (name: string): string =>
 	pipe(
 		asBuiltin(name),
 		O.alt(() => asExecutable(name)),
 		O.getOrElse(() => `${name} not found`),
-		(text) => IOE.right(pipe(text, O.some, output)),
 	);
 
 export const type: Command = (args) =>
 	pipe(
 		RA.head(args),
-		O.match(() => IOE.left({ message: "No arguments given!" }), describeType),
+		O.match(
+			() => ({
+				stdout: empty(),
+				stderr: fromString("No arguments given!\n"),
+				done: TE.right(normal),
+			}),
+			(name) => ({
+				stdout: fromString(`${describeType(name)}\n`),
+				stderr: empty(),
+				done: TE.right(normal),
+			}),
+		),
 	);

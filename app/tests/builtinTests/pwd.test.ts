@@ -1,20 +1,24 @@
 import { afterEach, test } from "bun:test";
-import * as O from "fp-ts/Option";
+import { realpathSync } from "node:fs";
 import * as pwd from "../../builtins/pwd";
-import { expectOutput } from "../helpers";
+import { empty } from "../../types";
+import { expectStdout } from "../helpers";
 
-const orignalCwd = process.cwd();
-afterEach(() => process.chdir(orignalCwd));
+const originalCwd = process.cwd();
+afterEach(() => process.chdir(originalCwd));
 
-test("pwd should return the current working directory", () => {
-	expectOutput(pwd.pwd([])(), O.some(process.cwd()));
+test("pwd should return the current working directory", async () => {
+	await expectStdout(pwd.pwd([], empty()), `${realpathSync(process.cwd())}\n`);
 });
 
-test("pwd should ignore any arguments", () => {
-	expectOutput(pwd.pwd(["unexpected", "arguments"])(), O.some(process.cwd()));
+test("pwd should ignore any arguments", async () => {
+	await expectStdout(
+		pwd.pwd(["unexpected", "arguments"], empty()),
+		`${realpathSync(process.cwd())}\n`,
+	);
 });
 
-test("if we change the directory, pwd should reflect that change", () => {
+test("if we change the directory, pwd should reflect that change", async () => {
 	process.chdir("..");
-	expectOutput(pwd.pwd([])(), O.some(process.cwd()));
+	await expectStdout(pwd.pwd([], empty()), `${realpathSync(process.cwd())}\n`);
 });

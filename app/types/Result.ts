@@ -1,24 +1,16 @@
 import * as O from "fp-ts/lib/Option";
 
 export enum ResultTag {
-	Output = "Output",
+	Normal = "Normal",
 	Exit = "Exit",
 }
 
-export type OutputResult = {
-	_tag: ResultTag.Output;
-	text: O.Option<string>;
-	errorText: O.Option<string>;
-};
+export type NormalResult = { _tag: ResultTag.Normal };
+export type ExitResult = { _tag: ResultTag.Exit; code: number };
+export type CommandResult = NormalResult | ExitResult;
 
-export type ExitResult = {
-	_tag: ResultTag.Exit;
-	code: number;
-};
-
-export type CommandResult = OutputResult | ExitResult;
-
-export const output = (
-	text: O.Option<string>,
-	errorText: O.Option<string> = O.none,
-): CommandResult => ({ _tag: ResultTag.Output, text, errorText });
+export const normal: CommandResult = { _tag: ResultTag.Normal };
+export const exitWith = (code: number): CommandResult => ({
+	_tag: ResultTag.Exit,
+	code,
+});

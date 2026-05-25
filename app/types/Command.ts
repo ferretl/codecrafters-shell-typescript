@@ -1,13 +1,14 @@
-import type * as IOE from "fp-ts/IOEither";
-import type { Option } from "fp-ts/lib/Option";
+import type { Readable } from "node:stream";
+import type { TaskEither } from "fp-ts/TaskEither";
 import type { CommandError } from "./Error";
 import type { CommandResult } from "./Result";
 
 export type CommandArgs = ReadonlyArray<string>;
 
-export type IOEvalResult = IOE.IOEither<CommandError, CommandResult>;
+export type StreamedCommand = {
+	stdout: Readable;
+	stderr: Readable;
+	done: TaskEither<CommandError, CommandResult>;
+};
 
-export type Command = (
-	args: CommandArgs,
-	stdin: Option<string>,
-) => IOEvalResult;
+export type Command = (args: CommandArgs, stdin: Readable) => StreamedCommand;

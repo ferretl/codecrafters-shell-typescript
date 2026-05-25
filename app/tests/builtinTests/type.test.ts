@@ -1,19 +1,27 @@
 import { test } from "bun:test";
-import * as O from "fp-ts/Option";
 import { type } from "../../builtins/type";
-import { expectOutput } from "../helpers";
+import { empty } from "../../types";
+import { expectStderr, expectStdout } from "../helpers";
 
 const builtinNames = ["echo", "cd", "pwd", "exit", "type"];
 
-test.each(builtinNames)("type identifies %s as a builtin", (name: string) => {
-	expectOutput(type([name])(), O.some(`${name} is a shell builtin`));
-});
-test("type should correctly identify path commands", () => {
-	const result = type(["ls"])();
-	expectOutput(result, O.some("ls is /bin/ls"));
+test.each(
+	builtinNames,
+)("type identifies %s as a builtin", async (name: string) => {
+	await expectStdout(type([name], empty()), `${name} is a shell builtin\n`);
 });
 
-test("type should return an error for unknown commands", () => {
-	const result = type(["unknowncommand"])();
-	expectOutput(result, O.some("unknowncommand not found"));
+test("type should correctly identify path commands", async () => {
+	await expectStdout(type(["ls"], empty()), "ls is /bin/ls\n");
+});
+
+test("type should report unknown commands as not found", async () => {
+	await expectStdout(
+		type(["unknowncommand"], empty()),
+		"unknowncommand not found\n",
+	);
+});
+
+test("type with no arguments should write an error to stderr", async () => {
+	await expectStderr(type([], empty()), "No arguments given!\n");
 });

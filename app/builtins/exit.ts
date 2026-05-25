@@ -1,17 +1,24 @@
-import * as IOE from "fp-ts/IOEither";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import { type Command, ResultTag } from "../types";
+import * as TE from "fp-ts/TaskEither";
+import { type Command, empty, exitWith } from "../types";
 
-const parseExitCode = (errorCode: string): number => {
-	const parsed = Number(errorCode);
-	return Number.isFinite(parsed) ? parsed : 0;
+const parseExitCode = (s: string): number => {
+	const n = Number(s);
+	return Number.isFinite(n) ? n : 0;
 };
-export const exit: Command = (args) =>
-	pipe(
-		RA.head(args),
-		O.getOrElse(() => "0"),
-		parseExitCode,
-		(code) => IOE.right({ _tag: ResultTag.Exit, code }),
-	);
+
+export const exit: Command = (args) => ({
+	stdout: empty(),
+	stderr: empty(),
+	done: TE.right(
+		exitWith(
+			pipe(
+				RA.head(args),
+				O.getOrElse(() => "0"),
+				parseExitCode,
+			),
+		),
+	),
+});

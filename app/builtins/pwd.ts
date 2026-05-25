@@ -1,8 +1,9 @@
 import fs from "node:fs";
-import * as IOE from "fp-ts/IOEither";
-import { pipe } from "fp-ts/lib/function";
-import * as O from "fp-ts/Option";
-import { type Command, output } from "../types";
+import * as TE from "fp-ts/TaskEither";
+import { type Command, empty, fromString, normal } from "../types";
 
-export const pwd: Command = () =>
-	IOE.right(pipe(fs.realpathSync(process.cwd()), O.some, output));
+export const pwd: Command = () => ({
+	stdout: fromString(`${fs.realpathSync(process.cwd())}\n`),
+	stderr: empty(),
+	done: TE.right(normal),
+});

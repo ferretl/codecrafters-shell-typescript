@@ -1,24 +1,30 @@
 import { expect } from "bun:test";
+import type { Readable } from "node:stream";
 import type * as E from "fp-ts/Either";
-import type * as O from "fp-ts/Option";
-import { type CommandError, type CommandResult, ResultTag } from "../types";
+import { ResultTag, type StreamedCommand } from "../types";
 
-type EvalResult = E.Either<CommandError, CommandResult>;
+const readAll = async (r: Readable): Promise<string> =>
+	(await r.toArray()).join("");
 
-export const expectOutput = (
-	result: EvalResult,
-	text: O.Option<string>,
-): void => {
-	if (result._tag !== "Right") {
-		throw new Error(`expected Right, got Left: ${result.left.message}`);
-	}
-	if (result.right._tag !== ResultTag.Output) {
-		throw new Error(`expected Output, got ${result.right._tag}`);
-	}
-	expect(result.right.text).toEqual(text);
+export const expectStdout = async (
+	cmd: StreamedCommand,
+	expected: string,
+): Promise<void> => {
+	expect(await readAll(cmd.stdout)).toBe(expected);
 };
 
-export const expectExit = (result: EvalResult, code: number): void => {
+export const expectStderr = async (
+	cmd: StreamedCommand,
+	expected: string,
+): Promise<void> => {
+	expect(await readAll(cmd.stderr)).toBe(expected);
+};
+
+export const expectExit = async (
+	cmd: StreamedCommand,
+	code: number,
+): Promise<void> => {
+	const result = await cmd.done();
 	if (result._tag !== "Right") {
 		throw new Error(`expected Right, got Left: ${result.left.message}`);
 	}
@@ -26,13 +32,6 @@ export const expectExit = (result: EvalResult, code: number): void => {
 		throw new Error(`expected Exit, got ${result.right._tag}`);
 	}
 	expect(result.right.code).toBe(code);
-};
-
-export const expectError = (result: EvalResult, message: string): void => {
-	if (result._tag !== "Left") {
-		throw new Error(`expected Left, got Right`);
-	}
-	expect(result.left.message).toBe(message);
 };
 
 export const unwrapRight = <L extends { message: string }, R>(

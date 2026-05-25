@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
+import * as RA from "fp-ts/ReadonlyArray";
 import parser, { type ParsedSegment } from "../parser";
 import { expectLeft, unwrapRight } from "./helpers";
-import * as RA from "fp-ts/ReadonlyArray";
-import { pipe } from "fp-ts/lib/function";
 
 const originalHome = process.env.HOME;
 beforeAll(() => {

@@ -1,12 +1,12 @@
 import { test } from "bun:test";
-import * as O from "fp-ts/Option";
 import * as echo from "../../builtins/echo";
-import { expectOutput } from "../helpers";
+import { empty } from "../../types";
+import { expectStdout } from "../helpers";
 
-test("echo should return the concatenated arguments as output", () => {
-	expectOutput(echo.echo(["Hello", "world!"])(), O.some("Hello world!"));
+test("echo should return the concatenated arguments as output", async () => {
+	await expectStdout(echo.echo(["Hello", "world!"], empty()), "Hello world!\n");
 });
 
-test("echo with no arguments should return an empty string", () => {
-	expectOutput(echo.echo([])(), O.some(""));
+test("echo with no arguments should return just a newline", async () => {
+	await expectStdout(echo.echo([], empty()), "\n");
 });
