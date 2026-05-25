@@ -21,14 +21,14 @@ test("history with no entries returns an empty stdout", async () => {
 
 test("history with one entry renders a single indexed line", async () => {
 	const ref = seed(["echo"])();
-	await expectStdout(makeHistory(ref)([], empty()), "0 echo\n");
+	await expectStdout(makeHistory(ref)([], empty()), "1 echo\n");
 });
 
 test("history renders entries in insertion order with trailing newlines", async () => {
 	const ref = seed(["type", "echo", "history"])();
 	await expectStdout(
 		makeHistory(ref)([], empty()),
-		"0 type\n1 echo\n2 history\n",
+		"1 type\n2 echo\n3 history\n",
 	);
 });
 
@@ -39,12 +39,12 @@ test("history reflects the ref's current state at invocation time", async () => 
 		ref.modify((h) => [...h, "echo"]),
 		IO.chain(() => ref.modify((h) => [...h, "type"])),
 	)();
-	await expectStdout(history([], empty()), "0 echo\n1 type\n");
+	await expectStdout(history([], empty()), "1 echo\n2 type\n");
 });
 
 test("history does not mutate the ref it reads from", async () => {
 	const ref = seed(["pwd", "cd"])();
 	const history = makeHistory(ref);
-	await expectStdout(history([], empty()), "0 pwd\n1 cd\n");
-	await expectStdout(history([], empty()), "0 pwd\n1 cd\n");
+	await expectStdout(history([], empty()), "1 pwd\n2 cd\n");
+	await expectStdout(history([], empty()), "1 pwd\n2 cd\n");
 });

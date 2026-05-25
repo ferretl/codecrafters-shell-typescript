@@ -10,7 +10,7 @@ import {
 } from "../types";
 
 const format = (entries: ReadonlyArray<string>): string =>
-	entries.map((name, i) => `${i} ${name}\n`).join("");
+	entries.map((name, i) => `${i + 1} ${name}\n`).join("");
 
 export const makeHistory =
 	(ref: HistoryRef): Command =>
