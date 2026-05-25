@@ -74,19 +74,16 @@ const executePipeline = (
 		),
 	);
 
-const recordPipeline = (
-	ref: HistoryRef,
-	pipeline: ParsedPipeline,
-): IO.IO<void> =>
-	ref.modify((entries) => [...entries, ...pipeline.map((s) => s.name)]);
+const recordLine = (ref: HistoryRef, line: string): IO.IO<void> =>
+	ref.modify((entries) => [...entries, line]);
 
 const runPipeline =
-	(rl: Interface, dispatch: Dispatch, ref: HistoryRef) =>
+	(rl: Interface, dispatch: Dispatch, ref: HistoryRef, line: string) =>
 	(pipeline: ParsedPipeline): T.Task<void> =>
 		isBlankPipeline(pipeline)
 			? T.of(undefined)
 			: pipe(
-					T.fromIO(recordPipeline(ref, pipeline)),
+					T.fromIO(recordLine(ref, line)),
 					T.chain(() => executePipeline(rl, dispatch, pipeline)),
 				);
 
@@ -100,7 +97,7 @@ const runLine =
 					T.fromIO(() => {
 						console.error(err.message);
 					}),
-				runPipeline(rl, dispatch, ref),
+				runPipeline(rl, dispatch, ref, line),
 			),
 		);
 const loop = async (
