@@ -12,12 +12,12 @@ export * from "./Result";
 export const fromString = (s: string): Readable => Readable.from([s]);
 export const empty = (): Readable => Readable.from([]);
 
-const waitForEnd = (r: Readable): Promise<void> =>
-	r.readableEnded
+const waitForEnd = (readable: Readable): Promise<void> =>
+	readable.readableEnded
 		? Promise.resolve()
 		: new Promise((resolve) => {
-				r.once("end", () => resolve());
-				r.once("close", () => resolve());
+				readable.once("end", () => resolve());
+				readable.once("close", () => resolve());
 			});
 
 export const builtinDone =

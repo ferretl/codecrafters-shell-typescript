@@ -5,7 +5,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import type * as TE from "fp-ts/TaskEither";
-import { dispatchCommand } from "./dispatch";
+import type { Dispatch } from "./dispatch";
 import type { ParsedPipeline, ParsedSegment, Redirect } from "./parser";
 import {
 	type CommandError,
@@ -81,12 +81,13 @@ const getNextStdin = (
 	);
 
 const startSegment = (
+	dispatch: Dispatch,
 	segment: ParsedSegment,
 	stdin: Readable,
 	isLastSegment: boolean,
 ): IO.IO<{ command: StreamedCommand; nextStdin: Readable }> =>
 	pipe(
-		dispatchCommand(segment.name, segment.args, stdin),
+		dispatch(segment.name, segment.args, stdin),
 		IO.chain((command) =>
 			pipe(
 				wireStream(
@@ -100,27 +101,30 @@ const startSegment = (
 		),
 	);
 
-export const buildPipeline = (pipeline: ParsedPipeline): IO.IO<PipelineBuild> =>
-	pipe(
-		pipeline,
-		RA.reduceWithIndex<ParsedSegment, IO.IO<PipelineBuild>>(
-			IO.of({ nextStdin: empty(), dones: [] }),
-			(index, accIO, segment) =>
-				pipe(
-					accIO,
-					IO.chain((state) =>
-						pipe(
-							startSegment(
-								segment,
-								state.nextStdin,
-								index === pipeline.length - 1,
+export const buildPipeline =
+	(dispatch: Dispatch) =>
+	(pipeline: ParsedPipeline): IO.IO<PipelineBuild> =>
+		pipe(
+			pipeline,
+			RA.reduceWithIndex<ParsedSegment, IO.IO<PipelineBuild>>(
+				IO.of({ nextStdin: empty(), dones: [] }),
+				(index, accIO, segment) =>
+					pipe(
+						accIO,
+						IO.chain((state) =>
+							pipe(
+								startSegment(
+									dispatch,
+									segment,
+									state.nextStdin,
+									index === pipeline.length - 1,
+								),
+								IO.map(({ command, nextStdin }) => ({
+									nextStdin,
+									dones: RA.append(command.done)(state.dones),
+								})),
 							),
-							IO.map(({ command, nextStdin }) => ({
-								nextStdin,
-								dones: RA.append(command.done)(state.dones),
-							})),
 						),
 					),
-				),
-		),
-	);
+			),
+		);

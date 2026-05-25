@@ -1,11 +1,11 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import type { Readable } from "node:stream";
 import * as E from "fp-ts/Either";
+import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
-import { pipe } from "fp-ts/lib/function";
-import type { TaskEither } from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/Option";
-import { findBuiltin, findExecutable } from "./builtins";
+import type { TaskEither } from "fp-ts/TaskEither";
+import { type CommandRegistry, findBuiltin, findExecutable } from "./builtins";
 import {
 	builtinCommand,
 	type CommandArgs,
@@ -58,24 +58,28 @@ const commandNotFound = (name: string): IO.IO<StreamedCommand> =>
 		builtinCommand(empty(), fromString(`${name}: command not found\n`), normal),
 	);
 
-export const dispatchCommand = (
+export type Dispatch = (
 	name: string,
 	args: CommandArgs,
 	stdin: Readable,
-): IO.IO<StreamedCommand> =>
-	pipe(
-		findBuiltin(name),
-		O.match(
-			() =>
-				pipe(
-					findExecutable(name),
-					IO.chain(
-						O.match(
-							() => commandNotFound(name),
-							(dir) => runExecutable(dir, name, args, stdin),
+) => IO.IO<StreamedCommand>;
+
+export const dispatchCommand =
+	(registry: CommandRegistry): Dispatch =>
+	(name, args, stdin) =>
+		pipe(
+			findBuiltin(registry)(name),
+			O.match(
+				() =>
+					pipe(
+						findExecutable(name),
+						IO.chain(
+							O.match(
+								() => commandNotFound(name),
+								(dir) => runExecutable(dir, name, args, stdin),
+							),
 						),
 					),
-				),
-			(command) => command(args, stdin),
-		),
-	);
+				(command) => command(args, stdin),
+			),
+		);

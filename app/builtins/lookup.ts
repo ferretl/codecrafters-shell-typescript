@@ -7,7 +7,14 @@ import * as O from "fp-ts/Option";
 
 export type FilePath = string;
 
-export const builtinNames = ["cd", "echo", "exit", "pwd", "type"] as const;
+export const builtinNames = [
+	"cd",
+	"echo",
+	"exit",
+	"pwd",
+	"type",
+	"history",
+] as const;
 export type BuiltinName = (typeof builtinNames)[number];
 
 export const isBuiltinName = (name: string): name is BuiltinName =>
