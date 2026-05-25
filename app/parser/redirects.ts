@@ -3,8 +3,8 @@ import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import type { CommandArgs } from "../types";
 
-type RedirectKey = "stdout" | "stderr";
-type RedirectMode = "overwrite" | "append";
+type RedirectKey = "stdout" | "stderr" ;
+type RedirectMode = "overwrite" | "append" | "pipe";
 type RedirectOperator = ">" | "1>" | ">>" | "1>>" | "2>" | "2>>";
 
 export type Redirect = {
@@ -13,6 +13,8 @@ export type Redirect = {
 };
 
 export type RedirectMap = Record<RedirectKey, O.Option<Redirect>>;
+
+export type RedirectOptions = {stdout: O.Option<Redirect>, stderr: O.Option<Redirect>}
 
 type TokenAccumulator = {
 	args: CommandArgs;
@@ -23,7 +25,7 @@ type TokenAccumulator = {
 const initialTokenAccum: TokenAccumulator = {
 	args: [],
 	pendingOperator: O.none,
-	redirects: { stdout: O.none, stderr: O.none },
+	redirects: { stdout: O.none, stderr: O.none},
 };
 
 const redirectMap: Record<

@@ -49,10 +49,18 @@ const setQuoteMode =
 const flushIfPending: StepFn = (state) =>
 	state.current ? flushState(state) : state;
 
+const beginEscape: StepFn = (state) => ({ ...state, escaped: true });
+
 const expandTilde: StepFn = (state, char) =>
 	appendToState(state, state.current ? char : (process.env.HOME ?? "~"));
 
-const beginEscape: StepFn = (state) => ({ ...state, escaped: true });
+const flushAndEmit =
+	(token: string): StepFn =>
+	(state) =>
+		pipe(flushIfPending(state, token), (state) => ({
+			...state,
+			args: RA.append(token)(state.args),
+		}));
 
 const unquotedHandlers: Record<string, StepFn> = {
 	"'": setQuoteMode(QuoteMode.Single),
@@ -61,6 +69,7 @@ const unquotedHandlers: Record<string, StepFn> = {
 	"\t": flushIfPending,
 	"\\": beginEscape,
 	"~": expandTilde,
+	"|": flushAndEmit("|"),
 };
 
 const stepUnquoted: StepFn = (state, char) =>

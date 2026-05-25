@@ -9,7 +9,9 @@ import * as O from "fp-ts/Option";
 import * as S from "fp-ts/string";
 import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
-import parseLine, { type ParsedContents, type Redirect } from "./parser";
+import parseLine, { type ParsedSegment, type Redirect } from "./parser";
+import type { RedirectOptions } from "./parser/redirects";
+import * as RA from "fp-ts/ReadonlyArray";
 import {
 	type CommandArgs,
 	type CommandResult,
@@ -115,9 +117,8 @@ const exitProgram =
 	};
 
 const handleOutput = (
-	stdout: O.Option<Redirect>,
 	result: OutputResult,
-	stderr: O.Option<Redirect>,
+	{ stdout, stderr }: RedirectOptions,
 ): IO.IO<void> =>
 	pipe(
 		handleStream(stdout, result.text, console.log),
@@ -125,10 +126,10 @@ const handleOutput = (
 	);
 
 const handleCommandResult =
-	(stdout: O.Option<Redirect>, stderr: O.Option<Redirect>) =>
+	(redirectOptions: RedirectOptions) =>
 	(result: CommandResult): IO.IO<void> =>
 		result._tag === ResultTag.Output
-			? handleOutput(stdout, result, stderr)
+			? handleOutput(result, redirectOptions)
 			: exitProgram(result);
 
 const noop: IO.IO<void> = () => {};
@@ -141,18 +142,20 @@ const logError =
 const evalParsed = ({
 	name,
 	args,
-	stdout,
-	stderr,
-}: ParsedContents): IO.IO<void> =>
+	redirectOptions,
+}: ParsedSegment): IO.IO<void> =>
 	S.isEmpty(name)
 		? noop
 		: pipe(
 				dispatchCommand(name, args),
-				IOE.matchE(logError, handleCommandResult(stdout, stderr)),
+				IOE.matchE(logError, handleCommandResult(redirectOptions)),
 			);
 
 const runLine = (line: string): IO.IO<void> =>
-	pipe(parseLine(line), E.match(logError, evalParsed));
+	pipe(
+		parseLine(line),
+		E.match(logError, RA.traverse(IO.Applicative)(evalParsed)),
+	);
 
 rl.on("line", (line) => {
 	runLine(line)();

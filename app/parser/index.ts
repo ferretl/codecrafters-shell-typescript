@@ -2,36 +2,49 @@ import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import type { CommandArgs } from "../types";
-import { type Redirect, reduceTokens } from "./redirects";
+import { type RedirectOptions, reduceTokens } from "./redirects";
 import { tokenize } from "./tokenize";
+import * as RA from "fp-ts/ReadonlyArray";
+import * as S from "fp-ts/string";
 
 export type { Redirect } from "./redirects";
-
 export type ParseError = { message: string };
-
-export type ParsedContents = {
+export type ParsedSegment = {
 	name: string;
 	args: CommandArgs;
-	stdout: O.Option<Redirect>;
-	stderr: O.Option<Redirect>;
+	redirectOptions: RedirectOptions;
+};
+export type ParsedPipeline = ReadonlyArray<ParsedSegment>;
+
+type Segments = ReadonlyArray<ReadonlyArray<string>>;
+type SplitState = {
+	current: ReadonlyArray<string>;
+	segments: Segments;
 };
 
-type ParseResult = E.Either<ParseError, ParsedContents>;
+const splitOnPipe = (tokens: ReadonlyArray<string>): Segments =>
+	pipe(
+		tokens,
+		RA.reduce({ current: [], segments: [] } as SplitState, (state, token) =>
+			token === "|"
+				? { current: [], segments: RA.append(state.current)(state.segments) }
+				: {
+						current: RA.append(token)(state.current),
+						segments: state.segments,
+					},
+		),
+		(state) => RA.append(state.current)(state.segments),
+	);
 
-export default (line: string): ParseResult => {
-	const [name = "", ...tokens] = pipe(line.trim(), tokenize);
-	const { args, pendingOperator, redirects } = pipe(tokens, reduceTokens);
-
+const parseSegment = (
+	tokens: ReadonlyArray<string>,
+): E.Either<ParseError, ParsedSegment> => {
+	const [name = "", ...rest] = tokens;
+	const { args, pendingOperator, redirects } = reduceTokens(rest);
 	return pipe(
 		pendingOperator,
 		O.match(
-			() =>
-				E.right({
-					name,
-					args,
-					stdout: redirects.stdout,
-					stderr: redirects.stderr,
-				}),
+			() => E.right({ name, args, redirectOptions: redirects }),
 			(operator) =>
 				E.left({
 					message: `syntax error: missing target for redirect '${operator}'`,
@@ -39,3 +52,12 @@ export default (line: string): ParseResult => {
 		),
 	);
 };
+
+export default (line: string): E.Either<ParseError, ParsedPipeline> =>
+	pipe(
+		line,
+		S.trim,
+		tokenize,
+		splitOnPipe,
+		RA.traverse(E.Applicative)(parseSegment),
+	);
