@@ -53,11 +53,19 @@ const parseSegment = (
 	);
 };
 
+const validatePipeline = (
+	segments: Segments,
+): E.Either<ParseError, Segments> =>
+	segments.length > 1 && segments.some((s) => s.length === 0)
+		? E.left({ message: "syntax error near unexpected token '|'" })
+		: E.right(segments);
+
 export default (line: string): E.Either<ParseError, ParsedPipeline> =>
 	pipe(
 		line,
 		S.trim,
 		tokenize,
 		splitOnPipe,
-		RA.traverse(E.Applicative)(parseSegment),
+		validatePipeline,
+		E.chain(RA.traverse(E.Applicative)(parseSegment)),
 	);
