@@ -44,7 +44,7 @@ const createWriteableContent = (text: O.Option<string>) =>
 		text,
 		O.match(
 			() => "",
-			(s) => `${s}\n`,
+			(s) => (s.endsWith("\n") ? s : `${s}\n`),
 		),
 	);
 
@@ -64,12 +64,7 @@ export const runExecutable =
 
 		return result.error
 			? E.left({ message: `${name}: ${result.error.message}` })
-			: E.right(
-					output(
-						nonEmpty(result.stdout.trimEnd()),
-						nonEmpty(result.stderr.trimEnd()),
-					),
-				);
+			: E.right(output(nonEmpty(result.stdout), nonEmpty(result.stderr)));
 	};
 
 const writeToConsole =
@@ -77,7 +72,7 @@ const writeToConsole =
 	() =>
 		pipe(
 			text,
-			O.match(noop, (s) => fallback(s)),
+			O.match(noop, (s) => fallback(s.endsWith("\n") ? s.slice(0, -1) : s)),
 		);
 
 const writeToFile =
