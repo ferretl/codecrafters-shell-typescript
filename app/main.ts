@@ -6,12 +6,12 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
-import * as TE from "fp-ts/TaskEither";
 import { findBuiltin, findExecutable } from "./builtins";
 import { completer } from "./completion";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import {
+	builtinCommand,
 	type CommandArgs,
 	type CommandError,
 	type CommandResult,
@@ -53,11 +53,8 @@ export const runExecutable = (
 	};
 };
 
-const commandNotFound = (name: string): StreamedCommand => ({
-	stdout: empty(),
-	stderr: fromString(`${name}: command not found\n`),
-	done: TE.right(normal),
-});
+const commandNotFound = (name: string): StreamedCommand =>
+	builtinCommand(empty(), fromString(`${name}: command not found\n`), normal);
 
 export const dispatchCommand = (
 	name: string,
