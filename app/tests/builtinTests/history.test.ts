@@ -1,15 +1,41 @@
-import { test } from "bun:test";
+import { expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import type { Readable } from "node:stream";
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
-import { makeHistory } from "../../builtins/histroy";
-import type { HistoryRef } from "../../histroy";
-import { empty } from "../../types";
-import { expectStdout } from "../helpers";
 import { newIORef } from "fp-ts/lib/IORef";
+import { makeHistory } from "../../builtins/histroy";
+import { type HistoryRef, makeHistoryRef } from "../../histroy";
+import { empty, type StreamedCommand } from "../../types";
+import { expectStdout } from "../helpers";
 
 const seed = (entries: ReadonlyArray<string>): HistoryRef => ({
 	read: () => entries,
+	append: () => () => {},
 });
+
+const writableSeed = (entries: ReadonlyArray<string>): HistoryRef => {
+	const ref = makeHistoryRef();
+	ref.append(entries)();
+	return ref;
+};
+
+const readStderr = async (cmd: IO.IO<StreamedCommand>): Promise<string> =>
+	(await (cmd().stderr as Readable).toArray()).join("");
+
+const withTempFile = async (
+	body: (filepath: string) => Promise<void>,
+): Promise<void> => {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "history-test-"));
+	const filepath = path.join(dir, "history");
+	try {
+		await body(filepath);
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+};
 
 test("history with no entries returns an empty stdout", async () => {
 	await expectStdout(makeHistory(seed([]))([], empty()), "");
@@ -41,7 +67,7 @@ test("history right-pads multi-digit indices into the 5-char column", async () =
 
 test("history reflects the ref's current state at invocation time", async () => {
 	const inner = newIORef<ReadonlyArray<string>>([])();
-	const ref: HistoryRef = { read: inner.read };
+	const ref: HistoryRef = { read: inner.read, append: () => () => {} };
 	const history = makeHistory(ref);
 	pipe(
 		inner.modify((h) => [...h, "echo hello"]),
@@ -95,4 +121,93 @@ test("history only consults the first argument for the limit", async () => {
 		makeHistory(ref)(["1", "ignored", "9"], empty()),
 		"    3  echo c\n",
 	);
+});
+
+test("history -r reads lines from a file and appends them to in-memory history", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "echo a\necho b\necho c\n");
+		const ref = writableSeed([]);
+		await expectStdout(makeHistory(ref)(["-r", filepath], empty()), "");
+		await expectStdout(
+			makeHistory(ref)([], empty()),
+			"    1  echo a\n    2  echo b\n    3  echo c\n",
+		);
+	});
+});
+
+test("history -r appends loaded entries after existing history", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "echo loaded\n");
+		const ref = writableSeed(["echo existing"]);
+		makeHistory(ref)(["-r", filepath], empty())();
+		await expectStdout(
+			makeHistory(ref)([], empty()),
+			"    1  echo existing\n    2  echo loaded\n",
+		);
+	});
+});
+
+test("history -r skips blank lines in the file", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "echo a\n\necho b\n\n\n");
+		const ref = writableSeed([]);
+		makeHistory(ref)(["-r", filepath], empty())();
+		await expectStdout(
+			makeHistory(ref)([], empty()),
+			"    1  echo a\n    2  echo b\n",
+		);
+	});
+});
+
+test("history -r against a missing file writes to stderr and leaves history alone", async () => {
+	const ref = writableSeed(["echo existing"]);
+	const stderr = await readStderr(
+		makeHistory(ref)(["-r", "/nonexistent/history-file"], empty()),
+	);
+	expect(stderr).toContain("history:");
+	await expectStdout(makeHistory(ref)([], empty()), "    1  echo existing\n");
+});
+
+test("history -w writes the in-memory history to a file", async () => {
+	await withTempFile(async (filepath) => {
+		const ref = seed(["echo a", "echo b", "echo c"]);
+		await expectStdout(makeHistory(ref)(["-w", filepath], empty()), "");
+		expect(fs.readFileSync(filepath, "utf8")).toBe("echo a\necho b\necho c\n");
+	});
+});
+
+test("history -w overwrites existing file content", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "old content that should be replaced\n");
+		const ref = seed(["echo new"]);
+		makeHistory(ref)(["-w", filepath], empty())();
+		expect(fs.readFileSync(filepath, "utf8")).toBe("echo new\n");
+	});
+});
+
+test("history -a appends in-memory history to an existing file", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "echo earlier\n");
+		const ref = seed(["echo later"]);
+		await expectStdout(makeHistory(ref)(["-a", filepath], empty()), "");
+		expect(fs.readFileSync(filepath, "utf8")).toBe(
+			"echo earlier\necho later\n",
+		);
+	});
+});
+
+test("history -a creates the file if it does not exist", async () => {
+	await withTempFile(async (filepath) => {
+		const ref = seed(["echo a", "echo b"]);
+		makeHistory(ref)(["-a", filepath], empty())();
+		expect(fs.readFileSync(filepath, "utf8")).toBe("echo a\necho b\n");
+	});
+});
+
+test("history -w against an unwritable path writes to stderr", async () => {
+	const ref = seed(["echo a"]);
+	const stderr = await readStderr(
+		makeHistory(ref)(["-w", "/nonexistent/dir/history-file"], empty()),
+	);
+	expect(stderr).toContain("history:");
 });
