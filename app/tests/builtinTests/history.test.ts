@@ -6,7 +6,7 @@ import type { Readable } from "node:stream";
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
 import { newIORef } from "fp-ts/lib/IORef";
-import { makeHistory } from "../../builtins/histroy";
+import { makeHistory } from "../../builtins/history";
 import { type HistoryRef, makeHistoryRef } from "../../histroy";
 import { empty, type StreamedCommand } from "../../types";
 import { expectStdout } from "../helpers";

@@ -8,7 +8,7 @@ import * as T from "fp-ts/Task";
 import { makeBuiltins } from "./builtins";
 import { makeShellCompleter, type ShellCompleter } from "./completion";
 import { type Dispatch, dispatchCommand } from "./dispatch";
-import { fromReadlineHistory } from "./histroy";
+import { type HistoryRef, makeHistoryRef } from "./histroy";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import { type CommandError, type CommandResult, ResultTag } from "./types";
@@ -100,23 +100,27 @@ const loop = async (
 	readline: Interface,
 	home: string,
 	dispatch: Dispatch,
+	historyRef: HistoryRef,
 ): Promise<void> => {
 	readline.prompt();
 	for await (const line of readline) {
+		if (line.trim().length > 0) {
+			historyRef.append([line])();
+		}
 		await runLine(readline, home, dispatch)(line)();
 		readline.prompt();
 	}
 };
 
 const main = async (): Promise<void> => {
-	const historyArr: string[] = [];
-	const historyRef = fromReadlineHistory(historyArr);
+	const historyRef = makeHistoryRef();
+	const readlineHistory: string[] = [];
 	const registry = makeBuiltins(historyRef);
 	const dispatch = dispatchCommand(registry);
 	const completer = makeShellCompleter();
-	const readline = makeReadline(completer, historyArr)();
+	const readline = makeReadline(completer, readlineHistory)();
 	const home = process.env.HOME ?? "~";
-	await loop(readline, home, dispatch);
+	await loop(readline, home, dispatch, historyRef);
 };
 
 main().catch((err) => {

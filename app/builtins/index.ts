@@ -4,7 +4,7 @@ import type { Command } from "../types/Command";
 import { cd } from "./cd";
 import { echo } from "./echo";
 import { exit } from "./exit";
-import { makeHistory } from "./histroy";
+import { makeHistory } from "./history";
 import { isBuiltinName } from "./lookup";
 import { pwd } from "./pwd";
 import { type } from "./type";
