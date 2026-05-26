@@ -9,11 +9,15 @@ import * as T from "fp-ts/Task";
 import { makeBuiltins } from "./builtins";
 import { makeShellCompleter, type ShellCompleter } from "./completion";
 import { type Dispatch, dispatchCommand } from "./dispatch";
-import { type HistoryRef, makeHistoryRef, readHistoryLines } from "./histroy";
+import {
+	appendHistoryLines,
+	type HistoryRef,
+	makeHistoryRef,
+	readHistoryLines,
+} from "./histroy";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import { type CommandError, type CommandResult, ResultTag } from "./types";
-import * as TE from "fp-ts/TaskEither";
 
 const makeReadline =
 	(completer: ShellCompleter, history: string[]): IO.IO<Interface> =>
@@ -27,25 +31,28 @@ const makeReadline =
 		});
 
 const handleShellExit =
-	(readline: Interface) =>
-	(result: CommandResult): IO.IO<void> =>
-	() => {
-		if (result._tag === ResultTag.Exit) {
-			readline.close();
-			process.exit(result.code);
-		}
+	(readline: Interface, historyRef: HistoryRef) =>
+	(result: CommandResult): T.Task<void> =>
+	async () => {
+		if (result._tag !== ResultTag.Exit) return;
+		const unsaved = historyRef.readUnsaved();
+		await appendHistoryLines(unsaved)();
+		historyRef.markSaved();
+		readline.close();
+		process.exit(result.code);
 	};
 
 const handlePipelineFinal =
-	(readline: Interface) =>
-	(result: E.Either<CommandError, CommandResult>): IO.IO<void> =>
+	(readline: Interface, historyRef: HistoryRef) =>
+	(result: E.Either<CommandError, CommandResult>): T.Task<void> =>
 		pipe(
 			result,
 			E.match(
-				(err) => () => {
-					console.error(err.message);
-				},
-				handleShellExit(readline),
+				(err) =>
+					T.fromIO(() => {
+						console.error(err.message);
+					}),
+				handleShellExit(readline, historyRef),
 			),
 		);
 
@@ -55,6 +62,7 @@ const isBlankPipeline = (pipeline: ParsedPipeline): boolean =>
 const handleCompletedTasks = (
 	completedTasks: ReadonlyArray<TaskEither<CommandError, CommandResult>>,
 	readline: Interface,
+	historyRef: HistoryRef,
 ): T.Task<void> =>
 	pipe(
 		completedTasks,
@@ -65,7 +73,7 @@ const handleCompletedTasks = (
 				RA.last,
 				O.match(
 					() => T.of(undefined),
-					(result) => T.fromIO(handlePipelineFinal(readline)(result)),
+					(result) => handlePipelineFinal(readline, historyRef)(result),
 				),
 			),
 		),
@@ -74,24 +82,30 @@ const handleCompletedTasks = (
 const executePipeline = (
 	readline: Interface,
 	dispatch: Dispatch,
+	historyRef: HistoryRef,
 	pipeline: ParsedPipeline,
 ): T.Task<void> =>
 	pipe(
 		T.fromIO(buildPipeline(dispatch)(pipeline)),
 		T.chain(({ completedTasks }) =>
-			handleCompletedTasks(completedTasks, readline),
+			handleCompletedTasks(completedTasks, readline, historyRef),
 		),
 	);
 
 const runPipeline =
-	(readline: Interface, dispatch: Dispatch) =>
+	(readline: Interface, dispatch: Dispatch, historyRef: HistoryRef) =>
 	(pipeline: ParsedPipeline): T.Task<void> =>
 		isBlankPipeline(pipeline)
 			? T.of(undefined)
-			: executePipeline(readline, dispatch, pipeline);
+			: executePipeline(readline, dispatch, historyRef, pipeline);
 
 const runLine =
-	(readline: Interface, home: string, dispatch: Dispatch) =>
+	(
+		readline: Interface,
+		home: string,
+		dispatch: Dispatch,
+		historyRef: HistoryRef,
+	) =>
 	(line: string): T.Task<void> =>
 		pipe(
 			parseLine(line, home),
@@ -100,7 +114,7 @@ const runLine =
 					T.fromIO(() => {
 						console.error(err.message);
 					}),
-				runPipeline(readline, dispatch),
+				runPipeline(readline, dispatch, historyRef),
 			),
 		);
 
@@ -115,7 +129,7 @@ const loop = async (
 		if (line.trim().length > 0) {
 			historyRef.append([line])();
 		}
-		await runLine(readline, home, dispatch)(line)();
+		await runLine(readline, home, dispatch, historyRef)(line)();
 		readline.prompt();
 	}
 };

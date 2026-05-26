@@ -4,9 +4,10 @@ import { pipe } from "fp-ts/lib/function";
 import type { TaskEither } from "fp-ts/lib/TaskEither";
 import { homedir } from "node:os";
 import * as TE from "fp-ts/TaskEither";
-import { readFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import * as A from "fp-ts/Array";
 import * as T from "fp-ts/Task";
+import type { array } from "fp-ts";
 
 const INITIAL_SAVED_COUNT = 0;
 
@@ -35,6 +36,25 @@ const readFileTE = (path: string): TE.TaskEither<Error, string> =>
 	TE.tryCatch(
 		() => readFile(path, "utf8"),
 		(error) => (error instanceof Error ? error : new Error(String(error))),
+	);
+
+const appendFileTE = (
+	path: string,
+	lines: ReadonlyArray<string>,
+): TE.TaskEither<Error, void> =>
+	TE.tryCatch(
+		() => appendFile(path, lines.length === 0 ? "" : `${lines.join("\n")}\n`),
+		(error) => (error instanceof Error ? error : new Error(String(error))),
+	);
+
+export const appendHistoryLines = (
+	lines: ReadonlyArray<string>,
+): T.Task<void> =>
+	pipe(
+		appendFileTE(getHistfilePath(), lines),
+		TE.getOrElse((err) =>
+			T.fromIO(() => console.error(`failed to write history: ${err.message}`)),
+		),
 	);
 
 export const readHistoryLines: T.Task<string[]> = pipe(

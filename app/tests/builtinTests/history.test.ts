@@ -16,6 +16,7 @@ const seed = (entries: ReadonlyArray<string>): HistoryRef => ({
 	append: () => () => {},
 	readUnsaved: () => entries,
 	markSaved: () => {},
+	seed: () => () => {},
 });
 
 const writableSeed = (entries: ReadonlyArray<string>): HistoryRef => {
@@ -74,6 +75,7 @@ test("history reflects the ref's current state at invocation time", async () => 
 		append: () => () => {},
 		readUnsaved: inner.read,
 		markSaved: () => {},
+		seed: () => () => {},
 	};
 	const history = makeHistory(ref);
 	pipe(
