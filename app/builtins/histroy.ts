@@ -1,9 +1,9 @@
 import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
-import type { HistoryRef } from "../histroy";
-import * as RA from "fp-ts/ReadonlyArray";
-import * as O from "fp-ts/Option";
 import * as S from "fp-ts/lib/string";
+import * as O from "fp-ts/Option";
+import * as RA from "fp-ts/ReadonlyArray";
+import type { HistoryRef } from "../histroy";
 import {
 	builtinCommand,
 	type Command,

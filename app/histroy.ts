@@ -1,8 +1,12 @@
 import type { IO } from "fp-ts/IO";
-import { type IORef, newIORef } from "fp-ts/IORef";
+import { newIORef } from "fp-ts/IORef";
 
-export type HistoryRef = IORef<ReadonlyArray<string>>;
+export type HistoryRef = { read: IO<ReadonlyArray<string>> };
 
 export const makeHistoryRef: IO<HistoryRef> = newIORef<ReadonlyArray<string>>(
 	[],
 );
+
+export const fromReadlineHistory = (readlineHistory: string[]): HistoryRef => ({
+	read: () => [...readlineHistory].reverse(),
+});

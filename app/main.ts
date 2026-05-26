@@ -8,33 +8,34 @@ import * as T from "fp-ts/Task";
 import { makeBuiltins } from "./builtins";
 import { makeShellCompleter, type ShellCompleter } from "./completion";
 import { type Dispatch, dispatchCommand } from "./dispatch";
-import { type HistoryRef, makeHistoryRef } from "./histroy";
+import { fromReadlineHistory } from "./histroy";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import { type CommandError, type CommandResult, ResultTag } from "./types";
 
 const makeReadline =
-	(completer: ShellCompleter): IO.IO<Interface> =>
+	(completer: ShellCompleter, history: string[]): IO.IO<Interface> =>
 	() =>
 		createInterface({
 			input: process.stdin,
 			output: process.stdout,
 			prompt: "$ ",
 			completer,
+			history,
 		});
 
 const handleShellExit =
-	(rl: Interface) =>
+	(readline: Interface) =>
 	(result: CommandResult): IO.IO<void> =>
 	() => {
 		if (result._tag === ResultTag.Exit) {
-			rl.close();
+			readline.close();
 			process.exit(result.code);
 		}
 	};
 
 const handlePipelineFinal =
-	(rl: Interface) =>
+	(readline: Interface) =>
 	(result: E.Either<CommandError, CommandResult>): IO.IO<void> =>
 		pipe(
 			result,
@@ -42,7 +43,7 @@ const handlePipelineFinal =
 				(err) => () => {
 					console.error(err.message);
 				},
-				handleShellExit(rl),
+				handleShellExit(readline),
 			),
 		);
 
@@ -50,7 +51,7 @@ const isBlankPipeline = (pipeline: ParsedPipeline): boolean =>
 	pipeline.length === 1 && pipeline[0].name === "";
 
 const executePipeline = (
-	rl: Interface,
+	readline: Interface,
 	dispatch: Dispatch,
 	pipeline: ParsedPipeline,
 ): T.Task<void> =>
@@ -66,7 +67,7 @@ const executePipeline = (
 						RA.last,
 						O.match(
 							() => T.of(undefined),
-							(r) => T.fromIO(handlePipelineFinal(rl)(r)),
+							(result) => T.fromIO(handlePipelineFinal(readline)(result)),
 						),
 					),
 				),
@@ -74,21 +75,15 @@ const executePipeline = (
 		),
 	);
 
-const recordLine = (ref: HistoryRef, line: string): IO.IO<void> =>
-	ref.modify((entries) => [...entries, line]);
-
 const runPipeline =
-	(rl: Interface, dispatch: Dispatch, ref: HistoryRef, line: string) =>
+	(readline: Interface, dispatch: Dispatch) =>
 	(pipeline: ParsedPipeline): T.Task<void> =>
 		isBlankPipeline(pipeline)
 			? T.of(undefined)
-			: pipe(
-					T.fromIO(recordLine(ref, line)),
-					T.chain(() => executePipeline(rl, dispatch, pipeline)),
-				);
+			: executePipeline(readline, dispatch, pipeline);
 
 const runLine =
-	(rl: Interface, home: string, dispatch: Dispatch, ref: HistoryRef) =>
+	(readline: Interface, home: string, dispatch: Dispatch) =>
 	(line: string): T.Task<void> =>
 		pipe(
 			parseLine(line, home),
@@ -97,30 +92,31 @@ const runLine =
 					T.fromIO(() => {
 						console.error(err.message);
 					}),
-				runPipeline(rl, dispatch, ref, line),
+				runPipeline(readline, dispatch),
 			),
 		);
+
 const loop = async (
-	rl: Interface,
+	readline: Interface,
 	home: string,
 	dispatch: Dispatch,
-	ref: HistoryRef,
 ): Promise<void> => {
-	rl.prompt();
-	for await (const line of rl) {
-		await runLine(rl, home, dispatch, ref)(line)();
-		rl.prompt();
+	readline.prompt();
+	for await (const line of readline) {
+		await runLine(readline, home, dispatch)(line)();
+		readline.prompt();
 	}
 };
 
 const main = async (): Promise<void> => {
-	const historyRef = makeHistoryRef();
+	const historyArr: string[] = [];
+	const historyRef = fromReadlineHistory(historyArr);
 	const registry = makeBuiltins(historyRef);
 	const dispatch = dispatchCommand(registry);
 	const completer = makeShellCompleter();
-	const rl = makeReadline(completer)();
+	const readline = makeReadline(completer, historyArr)();
 	const home = process.env.HOME ?? "~";
-	await loop(rl, home, dispatch, historyRef);
+	await loop(readline, home, dispatch);
 };
 
 main().catch((err) => {
