@@ -1,13 +1,11 @@
+import { appendFile, readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import * as A from "fp-ts/Array";
 import * as IO from "fp-ts/IO";
 import { type IORef, newIORef } from "fp-ts/IORef";
 import { pipe } from "fp-ts/lib/function";
-import type { TaskEither } from "fp-ts/lib/TaskEither";
-import { homedir } from "node:os";
-import * as TE from "fp-ts/TaskEither";
-import { appendFile, readFile, writeFile } from "node:fs/promises";
-import * as A from "fp-ts/Array";
 import * as T from "fp-ts/Task";
-import type { array } from "fp-ts";
+import * as TE from "fp-ts/TaskEither";
 
 const INITIAL_SAVED_COUNT = 0;
 
