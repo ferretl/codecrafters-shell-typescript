@@ -1,6 +1,12 @@
 import * as IO from "fp-ts/IO";
 import { type IORef, newIORef } from "fp-ts/IORef";
 import { pipe } from "fp-ts/lib/function";
+import type { TaskEither } from "fp-ts/lib/TaskEither";
+import { homedir } from "node:os";
+import * as TE from "fp-ts/TaskEither";
+import { readFile } from "node:fs/promises";
+import * as A from "fp-ts/Array";
+import * as T from "fp-ts/Task";
 
 const INITIAL_SAVED_COUNT = 0;
 
@@ -9,7 +15,40 @@ export type HistoryRef = {
 	append: (lines: ReadonlyArray<string>) => IO.IO<void>;
 	readUnsaved: IO.IO<ReadonlyArray<string>>;
 	markSaved: IO.IO<void>;
+	seed: (lines: ReadonlyArray<string>) => IO.IO<void>;
 };
+
+const emptyHistory: string[] = [];
+
+const expandHome = (path: string): string =>
+	path.startsWith("~/") ? path.replace("~", homedir()) : path;
+
+const defaultHistfile = `${homedir()}/.zsh_history`;
+
+const getHistfilePath = (): string =>
+	process.env.HISTFILE ? expandHome(process.env.HISTFILE) : defaultHistfile;
+
+const stripZshMetadata = (line: string): string =>
+	line.startsWith(": ") ? line.slice(line.indexOf(";") + 1) : line;
+
+const readFileTE = (path: string): TE.TaskEither<Error, string> =>
+	TE.tryCatch(
+		() => readFile(path, "utf8"),
+		(error) => (error instanceof Error ? error : new Error(String(error))),
+	);
+
+export const readHistoryLines: T.Task<string[]> = pipe(
+	getHistfilePath(),
+	readFileTE,
+	TE.map((contents): string[] =>
+		pipe(
+			contents.split("\n"),
+			A.filter((line) => line.trim().length > 0),
+			A.map(stripZshMetadata),
+		),
+	),
+	TE.getOrElse(() => T.of(emptyHistory)),
+);
 
 const appendLines =
 	(entries: IORef<ReadonlyArray<string>>) =>
@@ -39,6 +78,15 @@ const markSaved = (
 		IO.chain((history) => watermark.write(history.length)),
 	);
 
+const seed =
+	(entries: IORef<ReadonlyArray<string>>, watermark: IORef<number>) =>
+	(lines: ReadonlyArray<string>): IO.IO<void> =>
+		pipe(
+			entries.modify((history) => [...history, ...lines]),
+			IO.chain(() => entries.read),
+			IO.chain((history) => watermark.write(history.length)),
+		);
+
 const buildHistoryRef = (
 	entries: IORef<ReadonlyArray<string>>,
 	watermark: IORef<number>,
@@ -47,14 +95,15 @@ const buildHistoryRef = (
 	append: appendLines(entries),
 	readUnsaved: readUnsaved(entries, watermark),
 	markSaved: markSaved(entries, watermark),
+	seed: seed(entries, watermark),
 });
 
 export const makeHistoryRef: IO.IO<HistoryRef> = pipe(
 	newIORef<ReadonlyArray<string>>([]),
-	IO.chain((entries) =>
-		pipe(
+	IO.chain((entries) => {
+		return pipe(
 			newIORef<number>(INITIAL_SAVED_COUNT),
 			IO.map((watermark) => buildHistoryRef(entries, watermark)),
-		),
-	),
+		);
+	}),
 );

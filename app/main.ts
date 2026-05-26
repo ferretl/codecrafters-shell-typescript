@@ -2,16 +2,18 @@ import { createInterface, type Interface } from "node:readline";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
 import type * as IO from "fp-ts/IO";
+import type { TaskEither } from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import { makeBuiltins } from "./builtins";
 import { makeShellCompleter, type ShellCompleter } from "./completion";
 import { type Dispatch, dispatchCommand } from "./dispatch";
-import { type HistoryRef, makeHistoryRef } from "./histroy";
+import { type HistoryRef, makeHistoryRef, readHistoryLines } from "./histroy";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
 import { type CommandError, type CommandResult, ResultTag } from "./types";
+import * as TE from "fp-ts/TaskEither";
 
 const makeReadline =
 	(completer: ShellCompleter, history: string[]): IO.IO<Interface> =>
@@ -50,6 +52,25 @@ const handlePipelineFinal =
 const isBlankPipeline = (pipeline: ParsedPipeline): boolean =>
 	pipeline.length === 1 && pipeline[0].name === "";
 
+const handleCompletedTasks = (
+	completedTasks: ReadonlyArray<TaskEither<CommandError, CommandResult>>,
+	readline: Interface,
+): T.Task<void> =>
+	pipe(
+		completedTasks,
+		T.sequenceArray,
+		T.chain((results) =>
+			pipe(
+				results,
+				RA.last,
+				O.match(
+					() => T.of(undefined),
+					(result) => T.fromIO(handlePipelineFinal(readline)(result)),
+				),
+			),
+		),
+	);
+
 const executePipeline = (
 	readline: Interface,
 	dispatch: Dispatch,
@@ -57,21 +78,8 @@ const executePipeline = (
 ): T.Task<void> =>
 	pipe(
 		T.fromIO(buildPipeline(dispatch)(pipeline)),
-		T.chain(({ dones }) =>
-			pipe(
-				dones,
-				T.sequenceArray,
-				T.chain((results) =>
-					pipe(
-						results,
-						RA.last,
-						O.match(
-							() => T.of(undefined),
-							(result) => T.fromIO(handlePipelineFinal(readline)(result)),
-						),
-					),
-				),
-			),
+		T.chain(({ completedTasks }) =>
+			handleCompletedTasks(completedTasks, readline),
 		),
 	);
 
@@ -114,7 +122,8 @@ const loop = async (
 
 const main = async (): Promise<void> => {
 	const historyRef = makeHistoryRef();
-	const readlineHistory: string[] = [];
+	const readlineHistory: string[] = await readHistoryLines();
+	historyRef.seed(readlineHistory)();
 	const registry = makeBuiltins(historyRef);
 	const dispatch = dispatchCommand(registry);
 	const completer = makeShellCompleter();

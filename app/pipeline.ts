@@ -16,7 +16,7 @@ import {
 
 type PipelineBuild = {
 	nextStdin: Readable;
-	dones: ReadonlyArray<TE.TaskEither<CommandError, CommandResult>>;
+	completedTasks: ReadonlyArray<TE.TaskEither<CommandError, CommandResult>>;
 };
 
 const sinkForRedirect =
@@ -101,30 +101,45 @@ const startSegment = (
 		),
 	);
 
+const buildPipelineReducer = (
+	index: number,
+	IOAccumulator: IO.IO<PipelineBuild>,
+	segment: ParsedSegment,
+	dispatch: Dispatch,
+	pipeline: ParsedPipeline,
+) =>
+	pipe(
+		IOAccumulator,
+		IO.chain((state) =>
+			pipe(
+				startSegment(
+					dispatch,
+					segment,
+					state.nextStdin,
+					index === pipeline.length - 1,
+				),
+				IO.map(({ command, nextStdin }) => ({
+					nextStdin,
+					completedTasks: RA.append(command.done)(state.completedTasks),
+				})),
+			),
+		),
+	);
+
 export const buildPipeline =
 	(dispatch: Dispatch) =>
 	(pipeline: ParsedPipeline): IO.IO<PipelineBuild> =>
 		pipe(
 			pipeline,
 			RA.reduceWithIndex<ParsedSegment, IO.IO<PipelineBuild>>(
-				IO.of({ nextStdin: empty(), dones: [] }),
-				(index, accIO, segment) =>
-					pipe(
-						accIO,
-						IO.chain((state) =>
-							pipe(
-								startSegment(
-									dispatch,
-									segment,
-									state.nextStdin,
-									index === pipeline.length - 1,
-								),
-								IO.map(({ command, nextStdin }) => ({
-									nextStdin,
-									dones: RA.append(command.done)(state.dones),
-								})),
-							),
-						),
+				IO.of({ nextStdin: empty(), completedTasks: [] }),
+				(index, IOAccumulator, segment) =>
+					buildPipelineReducer(
+						index,
+						IOAccumulator,
+						segment,
+						dispatch,
+						pipeline,
 					),
 			),
 		);
