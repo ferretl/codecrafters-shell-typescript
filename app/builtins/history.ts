@@ -82,11 +82,11 @@ const readAction = (
 	);
 
 const writeFileSafe = (
-	ref: HistoryRef,
+	entries: ReadonlyArray<string>,
 	filename: string,
 ): IOE.IOEither<string, void> =>
 	IOE.tryCatch(
-		() => fs.writeFileSync(filename, `${ref.read().join("\n")}\n`),
+		() => fs.writeFileSync(filename, `${entries.join("\n")}\n`),
 		(e) => (e as Error).message,
 	);
 
@@ -94,14 +94,27 @@ const writeAction = (
 	ref: HistoryRef,
 	filename: string,
 ): IO.IO<StreamedCommand> =>
-	pipe(writeFileSafe(ref, filename), IO.map(E.match(errored, ok)));
+	pipe(
+		ref.read,
+		IO.chain((entries) =>
+			pipe(
+				writeFileSafe(entries, filename),
+				IOE.chainFirstIOK(() => ref.markSaved),
+				IO.map(E.match(errored, ok)),
+			),
+		),
+	);
 
 const appendToFileSafe = (
-	ref: HistoryRef,
+	entries: ReadonlyArray<string>,
 	filename: string,
 ): IOE.IOEither<string, void> =>
 	IOE.tryCatch(
-		() => fs.appendFileSync(filename, `${ref.read().join("\n")}\n`),
+		() => {
+			if (entries.length > 0) {
+				fs.appendFileSync(filename, `${entries.join("\n")}\n`);
+			}
+		},
 		(e) => (e as Error).message,
 	);
 
@@ -109,7 +122,16 @@ const appendAction = (
 	ref: HistoryRef,
 	filename: string,
 ): IO.IO<StreamedCommand> =>
-	pipe(appendToFileSafe(ref, filename), IO.map(E.match(errored, ok)));
+	pipe(
+		ref.readUnsaved,
+		IO.chain((unsaved) =>
+			pipe(
+				appendToFileSafe(unsaved, filename),
+				IOE.chainFirstIOK(() => ref.markSaved),
+				IO.map(E.match(errored, ok)),
+			),
+		),
+	);
 
 const dispatch = (
 	action: HistoryAction,

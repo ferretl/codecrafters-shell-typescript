@@ -14,6 +14,8 @@ import { expectStdout } from "../helpers";
 const seed = (entries: ReadonlyArray<string>): HistoryRef => ({
 	read: () => entries,
 	append: () => () => {},
+	readUnsaved: () => entries,
+	markSaved: () => {},
 });
 
 const writableSeed = (entries: ReadonlyArray<string>): HistoryRef => {
@@ -67,7 +69,12 @@ test("history right-pads multi-digit indices into the 5-char column", async () =
 
 test("history reflects the ref's current state at invocation time", async () => {
 	const inner = newIORef<ReadonlyArray<string>>([])();
-	const ref: HistoryRef = { read: inner.read, append: () => () => {} };
+	const ref: HistoryRef = {
+		read: inner.read,
+		append: () => () => {},
+		readUnsaved: inner.read,
+		markSaved: () => {},
+	};
 	const history = makeHistory(ref);
 	pipe(
 		inner.modify((h) => [...h, "echo hello"]),
@@ -210,4 +217,52 @@ test("history -w against an unwritable path writes to stderr", async () => {
 		makeHistory(ref)(["-w", "/nonexistent/dir/history-file"], empty()),
 	);
 	expect(stderr).toContain("history:");
+});
+
+test("history -a twice in a row only appends entries added between the two calls", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "existing 1\nexisting 2\n");
+		const ref = writableSeed(["echo a", "echo b", "echo c"]);
+		const history = makeHistory(ref);
+		history(["-a", filepath], empty())();
+		ref.append(["echo d", "echo e"])();
+		history(["-a", filepath], empty())();
+		expect(fs.readFileSync(filepath, "utf8")).toBe(
+			"existing 1\nexisting 2\necho a\necho b\necho c\necho d\necho e\n",
+		);
+	});
+});
+
+test("history -a after -w only writes entries added since the -w", async () => {
+	await withTempFile(async (write) => {
+		await withTempFile(async (append) => {
+			const ref = writableSeed(["echo a", "echo b"]);
+			const history = makeHistory(ref);
+			history(["-w", write], empty())();
+			ref.append(["echo c"])();
+			history(["-a", append], empty())();
+			expect(fs.readFileSync(append, "utf8")).toBe("echo c\n");
+		});
+	});
+});
+
+test("history -a with no new entries since last save writes nothing", async () => {
+	await withTempFile(async (filepath) => {
+		fs.writeFileSync(filepath, "existing\n");
+		const ref = writableSeed(["echo a"]);
+		const history = makeHistory(ref);
+		history(["-a", filepath], empty())();
+		history(["-a", filepath], empty())();
+		expect(fs.readFileSync(filepath, "utf8")).toBe("existing\necho a\n");
+	});
+});
+
+test("history -a does not advance the watermark when the write fails", async () => {
+	const ref = writableSeed(["echo a", "echo b"]);
+	const history = makeHistory(ref);
+	await readStderr(history(["-a", "/nonexistent/dir/history-file"], empty()));
+	await withTempFile(async (filepath) => {
+		history(["-a", filepath], empty())();
+		expect(fs.readFileSync(filepath, "utf8")).toBe("echo a\necho b\n");
+	});
 });
