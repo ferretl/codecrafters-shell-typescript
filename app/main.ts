@@ -14,10 +14,14 @@ import {
 	type HistoryRef,
 	makeHistoryRef,
 	readHistoryLines,
-} from "./histroy";
+} from "./histroyRef";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
-import { type CommandError, type CommandResult, ResultTag } from "./types";
+import {
+	type CommandError,
+	type CommandResult,
+	ResultTag,
+} from "./commmandTypes";
 
 const makeReadline =
 	(completer: ShellCompleter, history: string[]): IO.IO<Interface> =>

@@ -5,7 +5,7 @@ import {
 	empty,
 	fromString,
 	normal,
-} from "../types";
+} from "../commmandTypes";
 
 export const pwd: Command = () => () =>
 	builtinCommand(

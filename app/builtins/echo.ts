@@ -8,7 +8,7 @@ import {
 	empty,
 	fromString,
 	normal,
-} from "../types";
+} from "../commmandTypes";
 
 export const echo: Command = (args) =>
 	IO.of(

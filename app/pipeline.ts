@@ -12,7 +12,7 @@ import {
 	type CommandResult,
 	empty,
 	type StreamedCommand,
-} from "./types";
+} from "./commmandTypes";
 
 type PipelineBuild = {
 	nextStdin: Readable;

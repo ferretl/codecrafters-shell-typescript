@@ -3,7 +3,7 @@ import { realpathSync } from "node:fs";
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as cd from "../../builtins/cd";
-import { empty } from "../../types";
+import { empty } from "../../commmandTypes";
 import { expectStderr, expectStdout } from "../helpers";
 
 const original = process.cwd();

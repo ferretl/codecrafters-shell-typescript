@@ -3,7 +3,7 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
-import type { CommandArgs } from "../types";
+import type { CommandArgs } from "../commmandTypes";
 import { type RedirectOptions, reduceTokens } from "./redirects";
 import { tokenize } from "./tokenize";
 

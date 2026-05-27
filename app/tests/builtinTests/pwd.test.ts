@@ -1,7 +1,7 @@
 import { afterEach, test } from "bun:test";
 import { realpathSync } from "node:fs";
 import * as pwd from "../../builtins/pwd";
-import { empty } from "../../types";
+import { empty } from "../../commmandTypes";
 import { expectStdout } from "../helpers";
 
 const originalCwd = process.cwd();

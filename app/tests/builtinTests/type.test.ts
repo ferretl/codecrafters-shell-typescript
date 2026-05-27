@@ -1,6 +1,6 @@
 import { test } from "bun:test";
 import { type } from "../../builtins/type";
-import { empty } from "../../types";
+import { empty } from "../../commmandTypes";
 import { expectStderr, expectStdout } from "../helpers";
 
 const builtinNames = ["echo", "cd", "pwd", "exit", "type"];

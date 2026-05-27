@@ -6,7 +6,7 @@ import * as IOE from "fp-ts/IOEither";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
-import type { HistoryRef } from "../histroy";
+import type { HistoryRef } from "../histroyRef";
 import {
 	builtinCommand,
 	type Command,
@@ -15,7 +15,7 @@ import {
 	fromString,
 	normal,
 	type StreamedCommand,
-} from "../types";
+} from "../commmandTypes";
 
 type HistoryAction =
 	| { readonly _tag: "Print"; readonly limit: O.Option<number> }

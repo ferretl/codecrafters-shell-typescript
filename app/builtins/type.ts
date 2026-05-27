@@ -8,7 +8,7 @@ import {
 	empty,
 	fromString,
 	normal,
-} from "../types";
+} from "../commmandTypes";
 import { findExecutable, isBuiltinName } from "./lookup";
 
 const asBuiltin = (name: string): O.Option<string> =>

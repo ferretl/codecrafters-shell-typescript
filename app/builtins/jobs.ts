@@ -4,7 +4,7 @@ import {
 	empty,
 	fromString,
 	normal,
-} from "../types";
+} from "../commmandTypes";
 
 export const jobs: Command = () => () =>
 	builtinCommand(fromString(""), empty(), normal);

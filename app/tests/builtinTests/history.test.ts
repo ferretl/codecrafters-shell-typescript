@@ -7,8 +7,8 @@ import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
 import { newIORef } from "fp-ts/lib/IORef";
 import { makeHistory } from "../../builtins/history";
-import { type HistoryRef, makeHistoryRef } from "../../histroy";
-import { empty, type StreamedCommand } from "../../types";
+import { type HistoryRef, makeHistoryRef } from "../../histroyRef";
+import { empty, type StreamedCommand } from "../../commmandTypes";
 import { expectStdout } from "../helpers";
 
 const seed = (entries: ReadonlyArray<string>): HistoryRef => ({

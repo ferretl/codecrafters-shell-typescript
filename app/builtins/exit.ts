@@ -3,7 +3,12 @@ import * as IO from "fp-ts/IO";
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
-import { builtinCommand, type Command, empty, exitWith } from "../types";
+import {
+	builtinCommand,
+	type Command,
+	empty,
+	exitWith,
+} from "../commmandTypes";
 
 const parseExitCode = (s: string): E.Either<string, number> => {
 	const n = Number(s);

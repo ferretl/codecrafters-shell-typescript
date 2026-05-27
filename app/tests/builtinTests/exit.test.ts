@@ -1,6 +1,6 @@
 import { test } from "bun:test";
 import * as exit from "../../builtins/exit";
-import { empty } from "../../types";
+import { empty } from "../../commmandTypes";
 import { expectExit } from "../helpers";
 
 test("exit should return an exit code of 0 if no arguments are provided", async () => {

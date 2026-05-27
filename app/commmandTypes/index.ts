@@ -2,12 +2,12 @@ import { Readable } from "node:stream";
 import * as E from "fp-ts/Either";
 import type * as TE from "fp-ts/TaskEither";
 import type { StreamedCommand } from "./Command";
-import type { CommandError } from "./Error";
-import type { CommandResult } from "./Result";
+import type { CommandError } from "./CommandError";
+import type { CommandResult } from "./CommandResult";
 
 export * from "./Command";
-export * from "./Error";
-export * from "./Result";
+export * from "./CommandError";
+export * from "./CommandResult";
 
 export const fromString = (s: string): Readable => Readable.from([s]);
 export const empty = (): Readable => Readable.from([]);

@@ -12,7 +12,7 @@ import {
 	fromString,
 	normal,
 	type StreamedCommand,
-} from "../types";
+} from "../commmandTypes";
 
 const ok = (): StreamedCommand => builtinCommand(empty(), empty(), normal);
 

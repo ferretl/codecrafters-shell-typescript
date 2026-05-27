@@ -15,7 +15,7 @@ import {
 	fromString,
 	normal,
 	type StreamedCommand,
-} from "./types";
+} from "./commmandTypes";
 
 const exitPromise = (
 	child: ChildProcessWithoutNullStreams,

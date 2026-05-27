@@ -1,8 +1,8 @@
 import type { Readable } from "node:stream";
 import type * as IO from "fp-ts/IO";
 import type { TaskEither } from "fp-ts/TaskEither";
-import type { CommandError } from "./Error";
-import type { CommandResult } from "./Result";
+import type { CommandError } from "./CommandError";
+import type { CommandResult } from "./CommandResult";
 
 export type CommandArgs = ReadonlyArray<string>;
 

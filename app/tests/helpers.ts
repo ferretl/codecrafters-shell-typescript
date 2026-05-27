@@ -2,7 +2,7 @@ import { expect } from "bun:test";
 import type { Readable } from "node:stream";
 import type * as E from "fp-ts/Either";
 import type * as IO from "fp-ts/IO";
-import { ResultTag, type StreamedCommand } from "../types";
+import { ResultTag, type StreamedCommand } from "../commmandTypes";
 
 const readAll = async (r: Readable): Promise<string> =>
 	(await r.toArray()).join("");

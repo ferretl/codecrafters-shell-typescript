@@ -1,6 +1,6 @@
 import { test } from "bun:test";
 import * as echo from "../../builtins/echo";
-import { empty } from "../../types";
+import { empty } from "../../commmandTypes";
 import { expectStdout } from "../helpers";
 
 test("echo should return the concatenated arguments as output", async () => {

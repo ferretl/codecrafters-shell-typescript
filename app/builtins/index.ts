@@ -1,6 +1,6 @@
 import * as O from "fp-ts/Option";
-import type { HistoryRef } from "../histroy";
-import type { Command } from "../types/Command";
+import type { HistoryRef } from "../histroyRef";
+import type { Command } from "../commmandTypes/Command";
 import { cd } from "./cd";
 import { echo } from "./echo";
 import { exit } from "./exit";
