@@ -5,6 +5,7 @@ import { cd } from "./cd";
 import { echo } from "./echo";
 import { exit } from "./exit";
 import { makeHistory } from "./history";
+import { jobs } from "./jobs";
 import { isBuiltinName } from "./lookup";
 import { pwd } from "./pwd";
 import { type } from "./type";
@@ -18,6 +19,7 @@ export const makeBuiltins = (historyRef: HistoryRef): CommandRegistry => ({
 	pwd,
 	type,
 	history: makeHistory(historyRef),
+	jobs,
 });
 
 export const findBuiltin =

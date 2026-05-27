@@ -11,6 +11,7 @@ export const builtinNames = [
 	"cd",
 	"echo",
 	"exit",
+	"jobs",
 	"pwd",
 	"type",
 	"history",
