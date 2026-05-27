@@ -49,9 +49,12 @@ export const appendHistoryLines = (
 	lines: ReadonlyArray<string>,
 ): T.Task<void> =>
 	pipe(
-		appendFileTE(getHistfilePath(), lines),
-		TE.getOrElse((err) =>
-			T.fromIO(() => console.error(`failed to write history: ${err.message}`)),
+		getHistfilePath(),
+		(path) => appendFileTE(path, lines),
+		TE.getOrElse((error) =>
+			T.fromIO(() =>
+				console.error(`failed to write history: ${error.message}`),
+			),
 		),
 	);
 
