@@ -2,6 +2,7 @@ import { expect } from "bun:test";
 import type { Readable } from "node:stream";
 import type * as E from "fp-ts/Either";
 import type * as IO from "fp-ts/IO";
+import type * as O from "fp-ts/Option";
 import { ResultTag, type StreamedCommand } from "../types";
 
 const readAll = async (r: Readable): Promise<string> =>
@@ -57,4 +58,11 @@ export const expectLeft = <L extends { message: string }, R>(
 		throw new Error(`expected Left, got Right`);
 	}
 	expect(either.left.message).toBe(message);
+};
+
+export const expectSome = <A>(option: O.Option<A>, value: A): void => {
+	if (option._tag !== "Some") {
+		throw new Error("expected Some, got None");
+	}
+	expect(option.value).toBe(value);
 };
