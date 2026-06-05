@@ -7,6 +7,11 @@ import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as T from "fp-ts/Task";
 import { makeBuiltins } from "./builtins";
+import {
+	type CommandError,
+	type CommandResult,
+	ResultTag,
+} from "./commmandTypes";
 import { makeShellCompleter, type ShellCompleter } from "./completion";
 import { type Dispatch, dispatchCommand } from "./dispatch";
 import {
@@ -17,11 +22,6 @@ import {
 } from "./histroyRef";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline } from "./pipeline";
-import {
-	type CommandError,
-	type CommandResult,
-	ResultTag,
-} from "./commmandTypes";
 
 const makeReadline =
 	(completer: ShellCompleter, history: string[]): IO.IO<Interface> =>

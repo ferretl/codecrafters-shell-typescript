@@ -5,14 +5,14 @@ import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import type * as TE from "fp-ts/TaskEither";
-import type { Dispatch } from "./dispatch";
-import type { ParsedPipeline, ParsedSegment, Redirect } from "./parser";
 import {
 	type CommandError,
 	type CommandResult,
 	empty,
 	type StreamedCommand,
 } from "./commmandTypes";
+import type { Dispatch } from "./dispatch";
+import type { ParsedPipeline, ParsedSegment, Redirect } from "./parser";
 
 type PipelineBuild = {
 	nextStdin: Readable;
