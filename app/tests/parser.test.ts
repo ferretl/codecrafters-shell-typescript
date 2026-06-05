@@ -16,6 +16,7 @@ const parseFirst = (line: string) =>
 	pipe(
 		parser(line, TEST_HOME),
 		unwrapRight,
+		(pipeline) => pipeline.segments,
 		RA.head,
 		O.getOrElse(() => blankSegment),
 	);
@@ -207,5 +208,42 @@ describe("parse errors", () => {
 			parser(`echo hi ${op}`, TEST_HOME),
 			`syntax error: missing target for redirect '${op}'`,
 		);
+	});
+});
+
+describe("background", () => {
+	test("a trailing & backgrounds the pipeline and is stripped", () => {
+		const result = unwrapRight(parser("sleep 30 &", TEST_HOME));
+		expect(result.background).toBe(true);
+		expect(result.segments).toHaveLength(1);
+		expect(result.segments[0].name).toBe("sleep");
+		expect(result.segments[0].args).toEqual(["30"]);
+	});
+
+	test("a trailing & with no space still backgrounds", () => {
+		const result = unwrapRight(parser("sleep 30&", TEST_HOME));
+		expect(result.background).toBe(true);
+		expect(result.segments[0].args).toEqual(["30"]);
+	});
+
+	test("a plain command is not backgrounded", () => {
+		expect(unwrapRight(parser("echo hi", TEST_HOME)).background).toBe(false);
+	});
+
+	test("a trailing & backgrounds a whole pipeline", () => {
+		const result = unwrapRight(parser("sleep 1 | cat &", TEST_HOME));
+		expect(result.background).toBe(true);
+		expect(result.segments).toHaveLength(2);
+	});
+
+	const ampersandError = "syntax error near unexpected token '&'";
+
+	test.each([
+		"sleep 1 && echo hi",
+		"echo a & echo b",
+		"&",
+		"echo a & b &",
+	])("rejects '%s' as a syntax error", (line) => {
+		expectLeft(parser(line, TEST_HOME), ampersandError);
 	});
 });

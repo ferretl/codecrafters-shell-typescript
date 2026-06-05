@@ -50,6 +50,7 @@ const runExecutable =
 			stdout: child.stdout,
 			stderr: child.stderr,
 			done: captureExit(child, name),
+			pid: O.fromNullable(child.pid),
 		};
 	};
 

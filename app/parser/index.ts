@@ -14,7 +14,10 @@ export type ParsedSegment = {
 	args: CommandArgs;
 	redirectOptions: RedirectOptions;
 };
-export type ParsedPipeline = ReadonlyArray<ParsedSegment>;
+export type ParsedPipeline = {
+	segments: ReadonlyArray<ParsedSegment>;
+	background: boolean;
+};
 
 type Segments = ReadonlyArray<ReadonlyArray<string>>;
 type SplitState = {
@@ -62,14 +65,51 @@ const validatePipeline = (
 		? E.left({ message: "syntax error near unexpected token '|'" })
 		: E.right(segments);
 
+const AMPERSAND = "&";
+
+type BackgroundSplit = {
+	tokens: ReadonlyArray<string>;
+	background: boolean;
+};
+
+const countAmpersands = (tokens: ReadonlyArray<string>): number =>
+	pipe(
+		tokens,
+		RA.filter((token) => token === AMPERSAND),
+		RA.size,
+	);
+
+const endsWithAmpersand = (tokens: ReadonlyArray<string>): boolean =>
+	pipe(RA.last(tokens), O.elem(S.Eq)(AMPERSAND));
+
+// Only a single, trailing `&` (with a command in front of it) backgrounds the
+// pipeline. Any other `&` (`&&`, mid-line, or bare) is a syntax error rather
+// than a token that silently leaks into a command's arguments.
+const splitBackground = (
+	tokens: ReadonlyArray<string>,
+): E.Either<ParseError, BackgroundSplit> =>
+	countAmpersands(tokens) === 0
+		? E.right({ tokens, background: false })
+		: countAmpersands(tokens) === 1 &&
+				endsWithAmpersand(tokens) &&
+				tokens.length > 1
+			? E.right({ tokens: RA.dropRight(1)(tokens), background: true })
+			: E.left({ message: "syntax error near unexpected token '&'" });
+
 export default (
 	line: string,
 	home: string,
 ): E.Either<ParseError, ParsedPipeline> =>
 	pipe(
-		S.trim(line),
-		(trimmed) => tokenize(trimmed, home),
-		splitOnPipe,
-		validatePipeline,
-		E.chain(RA.traverse(E.Applicative)(parseSegment)),
+		tokenize(S.trim(line), home),
+		splitBackground,
+		E.chain(({ tokens, background }) =>
+			pipe(
+				tokens,
+				splitOnPipe,
+				validatePipeline,
+				E.chain(RA.traverse(E.Applicative)(parseSegment)),
+				E.map((segments) => ({ segments, background })),
+			),
+		),
 	);

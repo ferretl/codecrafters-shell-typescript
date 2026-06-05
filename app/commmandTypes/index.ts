@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import * as E from "fp-ts/Either";
+import * as O from "fp-ts/Option";
 import type * as TE from "fp-ts/TaskEither";
 import type { StreamedCommand } from "./Command";
 import type { CommandError } from "./CommandError";
@@ -39,4 +40,5 @@ export const builtinCommand = (
 	stdout,
 	stderr,
 	done: builtinDone(stdout, stderr, result),
+	pid: O.none,
 });

@@ -72,6 +72,7 @@ const buildUnquotedHandlers = (home: string): Record<string, StepFn> => ({
 	"\\": beginEscape,
 	"~": expandTilde(home),
 	"|": flushAndEmit("|"),
+	"&": flushAndEmit("&"),
 });
 
 const stepInsideSingle: StepFn = (state, char) => stepQuoted(state, char, "'");

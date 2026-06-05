@@ -1,25 +1,29 @@
 import * as O from "fp-ts/Option";
 import type { Command } from "../commmandTypes/Command";
 import type { HistoryRef } from "../histroyRef";
+import type { JobsRef } from "../jobsRef";
 import { cd } from "./cd";
 import { echo } from "./echo";
 import { exit } from "./exit";
 import { makeHistory } from "./history";
-import { jobs } from "./jobs";
+import { makeJobs } from "./jobs";
 import { isBuiltinName } from "./lookup";
 import { pwd } from "./pwd";
 import { type } from "./type";
 
 export type CommandRegistry = Record<string, Command>;
 
-export const makeBuiltins = (historyRef: HistoryRef): CommandRegistry => ({
+export const makeBuiltins = (
+	historyRef: HistoryRef,
+	jobsRef: JobsRef,
+): CommandRegistry => ({
 	cd,
 	echo,
 	exit,
 	pwd,
 	type,
 	history: makeHistory(historyRef),
-	jobs,
+	jobs: makeJobs(jobsRef),
 });
 
 export const findBuiltin =

@@ -14,9 +14,10 @@ import {
 import type { Dispatch } from "./dispatch";
 import type { ParsedPipeline, ParsedSegment, Redirect } from "./parser";
 
-type PipelineBuild = {
+export type PipelineBuild = {
 	nextStdin: Readable;
 	completedTasks: ReadonlyArray<TE.TaskEither<CommandError, CommandResult>>;
+	pids: ReadonlyArray<O.Option<number>>;
 };
 
 const sinkForRedirect =
@@ -106,7 +107,7 @@ const buildPipelineReducer = (
 	IOAccumulator: IO.IO<PipelineBuild>,
 	segment: ParsedSegment,
 	dispatch: Dispatch,
-	pipeline: ParsedPipeline,
+	segments: ReadonlyArray<ParsedSegment>,
 ) =>
 	pipe(
 		IOAccumulator,
@@ -116,11 +117,12 @@ const buildPipelineReducer = (
 					dispatch,
 					segment,
 					state.nextStdin,
-					index === pipeline.length - 1,
+					index === segments.length - 1,
 				),
 				IO.map(({ command, nextStdin }) => ({
 					nextStdin,
 					completedTasks: RA.append(command.done)(state.completedTasks),
+					pids: RA.append(command.pid)(state.pids),
 				})),
 			),
 		),
@@ -130,16 +132,16 @@ export const buildPipeline =
 	(dispatch: Dispatch) =>
 	(pipeline: ParsedPipeline): IO.IO<PipelineBuild> =>
 		pipe(
-			pipeline,
+			pipeline.segments,
 			RA.reduceWithIndex<ParsedSegment, IO.IO<PipelineBuild>>(
-				IO.of({ nextStdin: empty(), completedTasks: [] }),
+				IO.of({ nextStdin: empty(), completedTasks: [], pids: [] }),
 				(index, IOAccumulator, segment) =>
 					buildPipelineReducer(
 						index,
 						IOAccumulator,
 						segment,
 						dispatch,
-						pipeline,
+						pipeline.segments,
 					),
 			),
 		);
