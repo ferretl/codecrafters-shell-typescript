@@ -131,6 +131,37 @@ const completeLine = (
 	});
 };
 
+const createContextFromPrefix = (
+	completeCommand: Completer,
+	completeArgument: Completer,
+	bell: IO.IO<void>,
+	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
+	lastAmbiguousPrefix: IORef<string>,
+): CompleterContext => ({
+	completeCommand,
+	completeArgument,
+	bell,
+	list,
+	lastAmbiguousPrefix,
+});
+
+const mapPrefixToTuple = (
+	completeCommand: Completer,
+	completeArgument: Completer,
+	bell: IO.IO<void>,
+	list: (matches: ReadonlyArray<string>, line: string) => IO.IO<void>,
+	lastAmbiguousPrefix: IORef<string>,
+) => {
+	const context: CompleterContext = createContextFromPrefix(
+		completeCommand,
+		completeArgument,
+		bell,
+		list,
+		lastAmbiguousPrefix,
+	);
+	return (line: string) => completeLine(line, context)();
+};
+
 export const makeCompleter = (
 	completeCommand: Completer,
 	completeArgument: Completer,
@@ -139,14 +170,13 @@ export const makeCompleter = (
 ): IO.IO<(line: string) => CompletionTuple> =>
 	pipe(
 		newIORef(""),
-		IO.map((lastAmbiguousPrefix) => {
-			const context: CompleterContext = {
+		IO.map((lastAmbiguousPrefix) =>
+			mapPrefixToTuple(
 				completeCommand,
 				completeArgument,
 				bell,
 				list,
 				lastAmbiguousPrefix,
-			};
-			return (line: string) => completeLine(line, context)();
-		}),
+			),
+		),
 	);
