@@ -7,5 +7,5 @@ import { makeHistoryRef } from "../../histroyRef";
 
 test("jobs has the builtin type", () => {
 	const builtinFinder = pipe(makeHistoryRef(), makeBuiltins, findBuiltin);
-	expect(builtinFinder("jobs")).toBe(O.some(jobs));
+	expect(builtinFinder("jobs")).toEqual(O.some(jobs));
 });

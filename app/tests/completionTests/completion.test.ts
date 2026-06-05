@@ -34,7 +34,7 @@ describe("completeCommand", () => {
 	test("returns ShowMatches for empty prefix, sorted", () => {
 		expect(completeCommand("")).toEqual({
 			_tag: CompletionTag.ShowMatches,
-			matches: ["cd ", "echo ", "exit ", "history ", "pwd ", "type "],
+			matches: ["cd ", "echo ", "exit ", "history ", "jobs ", "pwd ", "type "],
 		});
 	});
 
