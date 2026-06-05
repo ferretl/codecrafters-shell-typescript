@@ -16,33 +16,39 @@ test("jobs is registered as a builtin", () => {
 	expect(O.isSome(builtinFinder("jobs"))).toBe(true);
 });
 
+// "Running" (7 chars) right-padded into a 24-char status field => 17 spaces.
+const RUNNING = `Running${" ".repeat(17)}`;
+
 test("jobs renders nothing when there are no jobs", async () => {
 	await expectStdout(makeJobs(makeJobsRef())([], empty()), "");
 });
 
-test("jobs renders a job with its pid and command", async () => {
+test("jobs renders a single running job in bash format", async () => {
 	const jobsRef = makeJobsRef();
-	jobsRef.add(O.some(84470), "sleep 30")();
+	jobsRef.add(O.some(84470), "sleep 10 &")();
 	await expectStdout(
 		makeJobs(jobsRef)([], empty()),
-		"[1] 84470 Running sleep 30\n",
+		`[1]+  ${RUNNING}sleep 10 &\n`,
 	);
 });
 
-test("jobs omits the pid when there is none", async () => {
+test("jobs does not include the pid in the listing", async () => {
 	const jobsRef = makeJobsRef();
 	jobsRef.add(O.none, "echo hi")();
-	await expectStdout(makeJobs(jobsRef)([], empty()), "[1] Running echo hi\n");
-});
-
-test("jobs numbers entries monotonically and reflects removals", async () => {
-	const jobsRef = makeJobsRef();
-	jobsRef.add(O.some(1), "sleep 1")();
-	jobsRef.add(O.some(2), "sleep 2")();
-	jobsRef.remove(1)();
-	jobsRef.add(O.some(3), "sleep 3")();
 	await expectStdout(
 		makeJobs(jobsRef)([], empty()),
-		"[2] 2 Running sleep 2\n[3] 3 Running sleep 3\n",
+		`[1]+  ${RUNNING}echo hi\n`,
+	);
+});
+
+test("jobs marks the most recent job with + and the previous with -", async () => {
+	const jobsRef = makeJobsRef();
+	jobsRef.add(O.some(1), "sleep 1 &")();
+	jobsRef.add(O.some(2), "sleep 2 &")();
+	jobsRef.remove(1)();
+	jobsRef.add(O.some(3), "sleep 3 &")();
+	await expectStdout(
+		makeJobs(jobsRef)([], empty()),
+		`[2]-  ${RUNNING}sleep 2 &\n[3]+  ${RUNNING}sleep 3 &\n`,
 	);
 });
