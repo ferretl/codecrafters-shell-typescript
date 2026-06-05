@@ -12,9 +12,6 @@ import type { Job, JobsRef } from "../jobsRef";
 
 const STATUS_WIDTH = 24;
 
-// Bash marks the most recent job with `+`, the previous one with `-`, and
-// leaves the rest blank. Jobs are stored in start order, so the last entry is
-// the most recent.
 const markerFor = (index: number, total: number): string =>
 	index === total - 1 ? "+" : index === total - 2 ? "-" : " ";
 
