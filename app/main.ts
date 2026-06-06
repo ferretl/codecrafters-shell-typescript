@@ -1,7 +1,7 @@
 import { createInterface, type Interface } from "node:readline";
 import * as E from "fp-ts/Either";
 import { pipe } from "fp-ts/function";
-import type * as IO from "fp-ts/IO";
+import * as IO from "fp-ts/IO";
 import type { TaskEither } from "fp-ts/lib/TaskEither";
 import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
@@ -21,6 +21,7 @@ import {
 	readHistoryLines,
 } from "./histroyRef";
 import { type Job, type JobsRef, makeJobsRef } from "./jobsRef";
+import { renderJobs } from "./jobsView";
 import parseLine, { type ParsedPipeline } from "./parser";
 import { buildPipeline, type PipelineBuild } from "./pipeline";
 
@@ -95,9 +96,6 @@ const reportBackground = (
 		O.match(() => undefined, reportBackgroundResult),
 	);
 
-// Fire-and-forget: register the job, print `[n] pid`, then let the pipeline's
-// completion run detached so the prompt returns immediately. When it finishes
-// we surface any error and reap the entry (silent — no `Done` notification).
 const handleBackground =
 	(jobsRef: JobsRef, command: string) =>
 	(build: PipelineBuild): T.Task<void> =>
@@ -107,7 +105,7 @@ const handleBackground =
 		console.log(formatStartLine(job));
 		void T.sequenceArray(build.completedTasks)().then((results) => {
 			reportBackground(results);
-			jobsRef.remove(job.jobNumber)();
+			jobsRef.markDone(job.jobNumber)();
 		});
 	};
 
@@ -190,6 +188,26 @@ const runLine =
 			),
 		);
 
+const printJobs =
+	(jobs: ReadonlyArray<Job>): IO.IO<void> =>
+	() => {
+		process.stdout.write(renderJobs(jobs));
+	};
+
+const notifyFinishedJobs = (jobsRef: JobsRef): IO.IO<void> =>
+	pipe(
+		jobsRef.list,
+		IO.map(RA.filter((job: Job) => job.status === "Done")),
+		IO.chain((finished) =>
+			RA.isEmpty(finished)
+				? IO.of(undefined)
+				: pipe(
+						printJobs(finished),
+						IO.chain(() => jobsRef.reapDone),
+					),
+		),
+	);
+
 const loop = async (
 	readline: Interface,
 	home: string,
@@ -203,6 +221,7 @@ const loop = async (
 			historyRef.append([line])();
 		}
 		await runLine(readline, home, dispatch, historyRef, jobsRef)(line)();
+		notifyFinishedJobs(jobsRef)();
 		readline.prompt();
 	}
 	process.exit(0);

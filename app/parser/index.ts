@@ -82,9 +82,6 @@ const countAmpersands = (tokens: ReadonlyArray<string>): number =>
 const endsWithAmpersand = (tokens: ReadonlyArray<string>): boolean =>
 	pipe(RA.last(tokens), O.elem(S.Eq)(AMPERSAND));
 
-// Only a single, trailing `&` (with a command in front of it) backgrounds the
-// pipeline. Any other `&` (`&&`, mid-line, or bare) is a syntax error rather
-// than a token that silently leaks into a command's arguments.
 const splitBackground = (
 	tokens: ReadonlyArray<string>,
 ): E.Either<ParseError, BackgroundSplit> =>

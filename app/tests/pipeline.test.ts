@@ -92,3 +92,16 @@ describe("pipeline execution", () => {
 		expect(exitCode).toBe(5);
 	});
 });
+
+describe("background jobs", () => {
+	test("prints the job number and pid when starting a background job", async () => {
+		const { stdout } = await runShell("sleep 5 &\nexit\n");
+		expect(stdout).toMatch(/\[1\] \d+/);
+	});
+
+	test("reports a finished job as Done before the next prompt without jobs", async () => {
+		const { stdout } = await runShell("sleep 1 &\nsleep 2\nexit\n");
+		expect(stdout).toMatch(/\[1\]\+ {2}Done {20}sleep 1\b/);
+		expect(stdout).not.toMatch(/Done.*sleep 1 &/);
+	});
+});
