@@ -1,8 +1,9 @@
 import * as IO from "fp-ts/IO";
 import { type IORef, newIORef } from "fp-ts/IORef";
 import { pipe } from "fp-ts/lib/function";
-import type * as O from "fp-ts/Option";
+import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
+import * as RNEA from "fp-ts/ReadonlyNonEmptyArray";
 
 export type Job = {
 	jobNumber: number;
@@ -19,33 +20,33 @@ export type JobsRef = {
 	list: IO.IO<ReadonlyArray<Job>>;
 };
 
-const createAndStoreJob = (
-	counter: IORef<number>,
-	jobNumber: number,
-	jobs: IORef<readonly Job[]>,
-	pid: O.Option<number>,
-	command: string,
-): IO.IO<Job> =>
+const lowestFreeJobNumber = (jobs: ReadonlyArray<Job>): number =>
 	pipe(
-		counter.write(jobNumber),
-		IO.chain(() =>
-			jobs.modify((current) =>
-				RA.append({ jobNumber, pid, command, status: "Running" } as Job)(
-					current,
-				),
-			),
+		RNEA.range(1, jobs.length + 1),
+		RA.findFirst(
+			(candidate) => !jobs.some((job) => job.jobNumber === candidate),
 		),
-		IO.map((): Job => ({ jobNumber, pid, command, status: "Running" })),
+		O.getOrElse(() => jobs.length + 1),
 	);
 
 const addJob =
-	(jobs: IORef<ReadonlyArray<Job>>, counter: IORef<number>) =>
+	(jobs: IORef<ReadonlyArray<Job>>) =>
 	(pid: O.Option<number>, command: string): IO.IO<Job> =>
 		pipe(
-			counter.read,
-			IO.map((previous) => previous + 1),
-			IO.chain((jobNumber) =>
-				createAndStoreJob(counter, jobNumber, jobs, pid, command),
+			jobs.read,
+			IO.map(
+				(current): Job => ({
+					jobNumber: lowestFreeJobNumber(current),
+					pid,
+					command,
+					status: "Running",
+				}),
+			),
+			IO.chain((job) =>
+				pipe(
+					jobs.modify(RA.append(job)),
+					IO.map(() => job),
+				),
 			),
 		);
 
@@ -66,11 +67,8 @@ const markJobDone =
 const reapDoneJobs = (jobs: IORef<ReadonlyArray<Job>>): IO.IO<void> =>
 	jobs.modify(RA.filter((job) => job.status !== "Done"));
 
-const buildJobsRef = (
-	jobs: IORef<ReadonlyArray<Job>>,
-	counter: IORef<number>,
-): JobsRef => ({
-	add: addJob(jobs, counter),
+const buildJobsRef = (jobs: IORef<ReadonlyArray<Job>>): JobsRef => ({
+	add: addJob(jobs),
 	remove: removeJob(jobs),
 	markDone: markJobDone(jobs),
 	reapDone: reapDoneJobs(jobs),
@@ -79,10 +77,5 @@ const buildJobsRef = (
 
 export const makeJobsRef: IO.IO<JobsRef> = pipe(
 	newIORef<ReadonlyArray<Job>>([]),
-	IO.chain((jobs) =>
-		pipe(
-			newIORef<number>(0),
-			IO.map((counter) => buildJobsRef(jobs, counter)),
-		),
-	),
+	IO.map(buildJobsRef),
 );

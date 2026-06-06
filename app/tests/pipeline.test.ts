@@ -104,4 +104,10 @@ describe("background jobs", () => {
 		expect(stdout).toMatch(/\[1\]\+ {2}Done {20}sleep 1\b/);
 		expect(stdout).not.toMatch(/Done.*sleep 1 &/);
 	});
+
+	test("recycles the job number after the previous job is reaped", async () => {
+		const { stdout } = await runShell("sleep 1 &\nsleep 2\nsleep 5 &\nexit\n");
+		expect(stdout.match(/\[1\] \d+/g) ?? []).toHaveLength(2);
+		expect(stdout).not.toMatch(/\[2\] \d+/);
+	});
 });

@@ -16,7 +16,6 @@ test("jobs is registered as a builtin", () => {
 	expect(O.isSome(builtinFinder("jobs"))).toBe(true);
 });
 
-// Status labels right-padded into a 24-char field.
 const RUNNING = `Running${" ".repeat(17)}`;
 const DONE = `Done${" ".repeat(20)}`;
 
@@ -46,11 +45,22 @@ test("jobs marks the most recent job with + and the previous with -", async () =
 	const jobsRef = makeJobsRef();
 	jobsRef.add(O.some(1), "sleep 1 &")();
 	jobsRef.add(O.some(2), "sleep 2 &")();
-	jobsRef.remove(1)();
-	jobsRef.add(O.some(3), "sleep 3 &")();
 	await expectStdout(
 		makeJobs(jobsRef)([], empty()),
-		`[2]-  ${RUNNING}sleep 2 &\n[3]+  ${RUNNING}sleep 3 &\n`,
+		`[1]-  ${RUNNING}sleep 1 &\n[2]+  ${RUNNING}sleep 2 &\n`,
+	);
+});
+
+test("a new job recycles the lowest free number after one is removed", async () => {
+	const jobsRef = makeJobsRef();
+	jobsRef.add(O.some(1), "sleep 1 &")();
+	jobsRef.add(O.some(2), "sleep 2 &")();
+	jobsRef.remove(1)();
+	const recycled = jobsRef.add(O.some(3), "sleep 3 &")();
+	expect(recycled.jobNumber).toBe(1);
+	await expectStdout(
+		makeJobs(jobsRef)([], empty()),
+		`[1]+  ${RUNNING}sleep 3 &\n[2]-  ${RUNNING}sleep 2 &\n`,
 	);
 });
 
