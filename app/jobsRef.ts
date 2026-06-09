@@ -60,7 +60,7 @@ const markJobDone =
 	(jobNumber: number): IO.IO<void> =>
 		jobs.modify(
 			RA.map((job) =>
-				job.jobNumber === jobNumber ? { ...job, status: "Done" as const } : job,
+				job.jobNumber === jobNumber ? { ...job, status: "Done" } : job,
 			),
 		);
 
