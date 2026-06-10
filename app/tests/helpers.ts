@@ -2,10 +2,19 @@ import { expect } from "bun:test";
 import type { Readable } from "node:stream";
 import type * as E from "fp-ts/Either";
 import type * as IO from "fp-ts/IO";
+import * as O from "fp-ts/Option";
+import { findBuiltin, makeBuiltins } from "../builtins";
 import { ResultTag, type StreamedCommand } from "../commmandTypes";
+import { makeHistoryRef } from "../histroyRef";
+import { makeJobsRef } from "../jobsRef";
 
 const readAll = async (r: Readable): Promise<string> =>
 	(await r.toArray()).join("");
+
+const makeMockRegistry = () => makeBuiltins(makeHistoryRef(), makeJobsRef());
+
+export const expectBuiltin = (builtinName: string) =>
+	expect(O.isSome(findBuiltin(makeMockRegistry())(builtinName))).toBe(true);
 
 export const expectStdout = async (
 	cmd: IO.IO<StreamedCommand>,
