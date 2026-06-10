@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function";
 import * as RA from "fp-ts/lib/ReadonlyArray";
 import * as S from "fp-ts/lib/string";
-import { builtinNames } from "../builtins";
+import { builtinNames } from "../builtins/lookup";
 import type { Completer, CompletionResult } from "./CompletionResult";
 import { handleMatches } from "./handleMatches";
 
