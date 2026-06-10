@@ -1,20 +1,11 @@
 import { expect, test } from "bun:test";
-import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/Option";
-import { findBuiltin, makeBuiltins } from "../../builtins";
 import { makeJobs } from "../../builtins/jobs";
 import { empty } from "../../commmandTypes";
-import { makeHistoryRef } from "../../histroyRef";
-import { type JobsRef, makeJobsRef } from "../../jobsRef";
-import { expectStdout } from "../helpers";
+import { makeJobsRef } from "../../jobsRef";
+import { expectBuiltin, expectStdout } from "../helpers";
 
-const makeRegistry = (jobsRef: JobsRef) =>
-	pipe(makeBuiltins(makeHistoryRef(), jobsRef), findBuiltin);
-
-test("jobs is registered as a builtin", () => {
-	const builtinFinder = makeRegistry(makeJobsRef());
-	expect(O.isSome(builtinFinder("jobs"))).toBe(true);
-});
+test("jobs is registered as a builtin", () => expectBuiltin("jobs"));
 
 const RUNNING = `Running${" ".repeat(17)}`;
 const DONE = `Done${" ".repeat(20)}`;
