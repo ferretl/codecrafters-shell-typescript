@@ -21,7 +21,7 @@ export type BuiltinName = (typeof builtinNames)[number];
 export const isBuiltinName = (name: string): name is BuiltinName =>
 	(builtinNames as ReadonlyArray<string>).includes(name);
 
-const isExecutable =
+export const isExecutable =
 	(filePath: string): IO.IO<boolean> =>
 	() =>
 		pipe(

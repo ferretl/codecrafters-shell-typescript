@@ -5,7 +5,8 @@ import { pipe } from "fp-ts/function";
 import * as IO from "fp-ts/IO";
 import * as O from "fp-ts/Option";
 import type { TaskEither } from "fp-ts/TaskEither";
-import { type CommandRegistry, findBuiltin, findExecutable } from "./builtins";
+import { type CommandRegistry, findBuiltin } from "./builtins";
+import { findExecutable } from "./builtins/lookup";
 import {
 	builtinCommand,
 	type CommandArgs,

@@ -30,11 +30,3 @@ export const findBuiltin =
 	(registry: CommandRegistry) =>
 	(name: string): O.Option<Command> =>
 		isBuiltinName(name) ? O.some(registry[name]) : O.none;
-
-export {
-	type BuiltinName,
-	builtinNames,
-	type FilePath,
-	findExecutable,
-	isBuiltinName,
-} from "./lookup";
