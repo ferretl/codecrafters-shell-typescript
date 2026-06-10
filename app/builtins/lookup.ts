@@ -12,10 +12,10 @@ export const builtinNames = [
 	"complete",
 	"echo",
 	"exit",
+	"history",
 	"jobs",
 	"pwd",
 	"type",
-	"history",
 ] as const;
 export type BuiltinName = (typeof builtinNames)[number];
 

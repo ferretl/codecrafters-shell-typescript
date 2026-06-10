@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { builtinNames } from "../../builtins/lookup";
 import { CompletionTag } from "../../completion/CompletionResult";
 import {
 	makeCompleteArgument,
@@ -34,7 +35,7 @@ describe("completeCommand", () => {
 	test("returns ShowMatches for empty prefix, sorted", () => {
 		expect(completeCommand("")).toEqual({
 			_tag: CompletionTag.ShowMatches,
-			matches: ["cd ", "echo ", "exit ", "history ", "jobs ", "pwd ", "type "],
+			matches: builtinNames.map((builtinName) => `${builtinName} `),
 		});
 	});
 
@@ -46,7 +47,7 @@ describe("completeCommand", () => {
 		const completer = makeCompleteCommand(["custom_executable"]);
 		expect(completer("c")).toEqual({
 			_tag: CompletionTag.ShowMatches,
-			matches: ["cd ", "custom_executable "],
+			matches: ["cd ", "complete ", "custom_executable "],
 		});
 	});
 
