@@ -27,8 +27,10 @@ const isFile =
 	() =>
 		pipe(
 			O.tryCatch(() => fs.statSync(filePath)),
-			O.map((stats) => stats.isFile()),
-			O.getOrElse(() => false),
+			O.match(
+				() => false,
+				(stats) => stats.isFile(),
+			),
 		);
 
 const isDirectory =
@@ -36,8 +38,10 @@ const isDirectory =
 	() =>
 		pipe(
 			O.tryCatch(() => fs.statSync(filePath)),
-			O.map((stats) => stats.isDirectory()),
-			O.getOrElse(() => false),
+			O.match(
+				() => false,
+				(stats) => stats.isDirectory(),
+			),
 		);
 
 const listExecutablesInDir = (dir: string): IO.IO<ReadonlyArray<string>> =>
@@ -63,8 +67,10 @@ export const listDirectoriesInDir = (
 export const listPathExecutables: IO.IO<ReadonlyArray<string>> = () =>
 	pipe(
 		O.fromNullable(process.env.PATH),
-		O.map((PATH) => PATH.split(path.delimiter)),
-		O.getOrElse((): ReadonlyArray<string> => []),
+		O.match(
+			() => [],
+			(PATH) => PATH.split(path.delimiter),
+		),
 		RA.chain((dir) => listExecutablesInDir(dir)()),
 		RA.uniq(S.Eq),
 	);

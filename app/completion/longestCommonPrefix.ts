@@ -3,13 +3,18 @@ import * as O from "fp-ts/Option";
 import * as RA from "fp-ts/ReadonlyArray";
 import * as S from "fp-ts/string";
 
-const commonPrefixOfTwo = (a: string, b: string): string => {
-	const go = (index: number): number =>
-		index < a.length && index < b.length && a[index] === b[index]
-			? go(index + 1)
+const commonPrefixOfTwo = (
+	firstString: string,
+	secondString: string,
+): string => {
+	const commonPrefixOfTwoHelper = (index: number): number =>
+		index < firstString.length &&
+		index < secondString.length &&
+		firstString[index] === secondString[index]
+			? commonPrefixOfTwoHelper(index + 1)
 			: index;
 
-	return a.slice(0, go(0));
+	return firstString.slice(0, commonPrefixOfTwoHelper(0));
 };
 
 export const longestCommonPrefix = (
@@ -24,5 +29,5 @@ export const longestCommonPrefix = (
 				RA.reduce(head, commonPrefixOfTwo),
 			),
 		),
-		O.filter((p) => !S.isEmpty(p)),
+		O.filter((prefix) => !S.isEmpty(prefix)),
 	);

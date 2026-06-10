@@ -10,8 +10,10 @@ import {
 } from "./listings";
 import { makeCompleter } from "./makeCompleter";
 
+const BELLCODE = "\x07";
+
 const bell: IO.IO<void> = () => {
-	process.stdout.write("\x07");
+	process.stdout.write(BELLCODE);
 };
 
 const list =
