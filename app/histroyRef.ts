@@ -78,13 +78,13 @@ const appendLines =
 
 const readUnsaved = (
 	entries: IORef<ReadonlyArray<string>>,
-	watermark: IORef<number>,
+	savedCount: IORef<number>,
 ): IO.IO<ReadonlyArray<string>> =>
 	pipe(
 		entries.read,
 		IO.chain((history) =>
 			pipe(
-				watermark.read,
+				savedCount.read,
 				IO.map((cursor) => history.slice(cursor)),
 			),
 		),
@@ -92,31 +92,31 @@ const readUnsaved = (
 
 const markSaved = (
 	entries: IORef<ReadonlyArray<string>>,
-	watermark: IORef<number>,
+	savedCount: IORef<number>,
 ): IO.IO<void> =>
 	pipe(
 		entries.read,
-		IO.chain((history) => watermark.write(history.length)),
+		IO.chain((history) => savedCount.write(history.length)),
 	);
 
 const seed =
-	(entries: IORef<ReadonlyArray<string>>, watermark: IORef<number>) =>
+	(entries: IORef<ReadonlyArray<string>>, savedCount: IORef<number>) =>
 	(lines: ReadonlyArray<string>): IO.IO<void> =>
 		pipe(
 			entries.modify((history) => [...history, ...lines]),
 			IO.chain(() => entries.read),
-			IO.chain((history) => watermark.write(history.length)),
+			IO.chain((history) => savedCount.write(history.length)),
 		);
 
 const buildHistoryRef = (
 	entries: IORef<ReadonlyArray<string>>,
-	watermark: IORef<number>,
+	savedCount: IORef<number>,
 ): HistoryRef => ({
 	read: entries.read,
 	append: appendLines(entries),
-	readUnsaved: readUnsaved(entries, watermark),
-	markSaved: markSaved(entries, watermark),
-	seed: seed(entries, watermark),
+	readUnsaved: readUnsaved(entries, savedCount),
+	markSaved: markSaved(entries, savedCount),
+	seed: seed(entries, savedCount),
 });
 
 export const makeHistoryRef: IO.IO<HistoryRef> = pipe(
@@ -124,7 +124,7 @@ export const makeHistoryRef: IO.IO<HistoryRef> = pipe(
 	IO.chain((entries) => {
 		return pipe(
 			newIORef<number>(INITIAL_SAVED_COUNT),
-			IO.map((watermark) => buildHistoryRef(entries, watermark)),
+			IO.map((savedCount) => buildHistoryRef(entries, savedCount)),
 		);
 	}),
 );

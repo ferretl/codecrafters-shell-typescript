@@ -47,9 +47,9 @@ const wireStream = (
 		redirect,
 		O.match(
 			() => pipeSource(source, fallback, false),
-			(r) =>
+			(redirect) =>
 				pipe(
-					sinkForRedirect(r),
+					sinkForRedirect(redirect),
 					IO.chain((sink) => pipeSource(source, sink, true)),
 				),
 		),
