@@ -2,10 +2,12 @@ import { afterEach, test } from "bun:test";
 import { realpathSync } from "node:fs";
 import * as pwd from "../../builtins/pwd";
 import { empty } from "../../commmandTypes";
-import { expectStdout } from "../helpers";
+import { expectBuiltin, expectStdout } from "../helpers";
 
 const originalCwd = process.cwd();
 afterEach(() => process.chdir(originalCwd));
+
+test("pwd is registered as a builtin", () => expectBuiltin("pwd"));
 
 test("pwd should return the current working directory", async () => {
 	await expectStdout(pwd.pwd([], empty()), `${realpathSync(process.cwd())}\n`);

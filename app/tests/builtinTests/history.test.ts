@@ -9,7 +9,7 @@ import { newIORef } from "fp-ts/lib/IORef";
 import { makeHistory } from "../../builtins/history";
 import { empty, type StreamedCommand } from "../../commmandTypes";
 import { type HistoryRef, makeHistoryRef } from "../../histroyRef";
-import { expectStdout } from "../helpers";
+import { expectBuiltin, expectStdout } from "../helpers";
 
 const seed = (entries: ReadonlyArray<string>): HistoryRef => ({
 	read: () => entries,
@@ -39,6 +39,8 @@ const withTempFile = async (
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
 };
+
+test("history is registered as a builtin", () => expectBuiltin("history"));
 
 test("history with no entries returns an empty stdout", async () => {
 	await expectStdout(makeHistory(seed([]))([], empty()), "");

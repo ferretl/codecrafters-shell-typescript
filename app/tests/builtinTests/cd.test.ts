@@ -4,10 +4,12 @@ import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
 import * as cd from "../../builtins/cd";
 import { empty } from "../../commmandTypes";
-import { expectStderr, expectStdout } from "../helpers";
+import { expectBuiltin, expectStderr, expectStdout } from "../helpers";
 
 const original = process.cwd();
 afterEach(() => process.chdir(original));
+
+test("cd is registered as a builtin", () => expectBuiltin("cd"));
 
 test("cd should change the current working directory", async () => {
 	await expectStdout(cd.cd(["/tmp"], empty()), "");

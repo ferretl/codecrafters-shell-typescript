@@ -1,7 +1,9 @@
 import { test } from "bun:test";
 import * as exit from "../../builtins/exit";
 import { empty } from "../../commmandTypes";
-import { expectExit } from "../helpers";
+import { expectBuiltin, expectExit } from "../helpers";
+
+test("exit is registered as a builtin", () => expectBuiltin("exit"));
 
 test("exit should return an exit code of 0 if no arguments are provided", async () => {
 	await expectExit(exit.exit([], empty()), 0);

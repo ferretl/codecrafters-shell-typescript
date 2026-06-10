@@ -1,14 +1,17 @@
-import { test } from "bun:test";
+import { describe, test } from "bun:test";
+import { builtinNames } from "../../builtins/lookup";
 import { type } from "../../builtins/type";
 import { empty } from "../../commmandTypes";
-import { expectStderr, expectStdout } from "../helpers";
+import { expectBuiltin, expectStderr, expectStdout } from "../helpers";
 
-const builtinNames = ["echo", "cd", "pwd", "exit", "type"];
+test("type is registered as a builtin", () => expectBuiltin("type"));
 
-test.each(
-	builtinNames,
-)("type identifies %s as a builtin", async (name: string) => {
-	await expectStdout(type([name], empty()), `${name} is a shell builtin\n`);
+describe("type identifies builtins", () => {
+	test.each([
+		...builtinNames,
+	])("type identifies %s as a builtin", async (name: string) => {
+		await expectStdout(type([name], empty()), `${name} is a shell builtin\n`);
+	});
 });
 
 test("type should correctly identify path commands", async () => {
