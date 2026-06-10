@@ -3,6 +3,7 @@ import type { Command } from "../commmandTypes/Command";
 import type { HistoryRef } from "../histroyRef";
 import type { JobsRef } from "../jobsRef";
 import { cd } from "./cd";
+import { complete } from "./complete";
 import { echo } from "./echo";
 import { exit } from "./exit";
 import { makeHistory } from "./history";
@@ -18,6 +19,7 @@ export const makeBuiltins = (
 	jobsRef: JobsRef,
 ): CommandRegistry => ({
 	cd,
+	complete,
 	echo,
 	exit,
 	pwd,

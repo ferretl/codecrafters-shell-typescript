@@ -9,6 +9,7 @@ export type FilePath = string;
 
 export const builtinNames = [
 	"cd",
+	"complete",
 	"echo",
 	"exit",
 	"jobs",
